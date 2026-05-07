@@ -179,6 +179,9 @@ body {
   flex-direction: column;
   gap: 1px;
 }
+/* `display: flex` above overrides the default behavior of [hidden],
+   so we have to put it back explicitly. */
+.share-menu[hidden] { display: none; }
 .share-item {
   background: transparent;
   border: 0;
