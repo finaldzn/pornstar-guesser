@@ -18,17 +18,20 @@ import urllib.parse
 import urllib.request
 
 SPARQL = """
-SELECT ?item ?itemLabel ?image WHERE {
+SELECT ?item ?itemLabel ?image ?gender WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
-  ?item wdt:P21 wd:Q6581072 .
+  ?item wdt:P21 ?gender .
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
 }
 ORDER BY DESC(?sl)
-LIMIT 1000
+LIMIT 1500
 """
+
+GENDER_FEMALE = "Q6581072"
+GENDER_MALE = "Q6581097"
 
 ENDPOINT = "https://query.wikidata.org/sparql"
 USER_AGENT = (
@@ -58,6 +61,15 @@ def thumbify(commons_url: str, width: int = 480) -> str:
     return u
 
 
+def gender_bucket(gender_url: str) -> str:
+    qid = gender_url.rsplit("/", 1)[-1]
+    if qid == GENDER_FEMALE:
+        return "f"
+    if qid == GENDER_MALE:
+        return "m"
+    return "x"
+
+
 def main() -> None:
     data = fetch()
     seen: dict[str, dict] = {}
@@ -65,13 +77,14 @@ def main() -> None:
         qid = b.get("item", {}).get("value", "").rsplit("/", 1)[-1]
         name = b.get("itemLabel", {}).get("value", "").strip()
         img = b.get("image", {}).get("value", "").strip()
+        gender = gender_bucket(b.get("gender", {}).get("value", ""))
         if not (qid and name and img):
             continue
         if name == qid:           # SPARQL falls back to QID when no label exists
             continue
         if qid in seen:
             continue
-        seen[qid] = {"id": qid, "name": name, "image_url": thumbify(img)}
+        seen[qid] = {"id": qid, "name": name, "gender": gender, "image_url": thumbify(img)}
 
     out = sorted(seen.values(), key=lambda c: c["name"].lower())
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)

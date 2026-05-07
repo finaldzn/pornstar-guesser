@@ -2,7 +2,7 @@
 
 const STORAGE_KEY  = "dlpx.state.v1";
 const SESSION_KEY  = "dlpx.session.v1";
-const POOL_CACHE   = "dlpx.pool.v2";   // v2: female-only pool
+const POOL_CACHE   = "dlpx.pool.v3";   // v3: mixed pool, distractors drawn per-gender
 const AGE_KEY      = "dlpx.age.v1";
 
 const CACHE_TTL_MS     = 7 * 24 * 60 * 60 * 1000;
@@ -12,14 +12,17 @@ const CHOICES_PER_ROUND = 4;
 const MIN_POOL          = CHOICES_PER_ROUND;
 const PRELOAD_AHEAD     = 4;           // portraits warmed in the browser cache
 
-const SPARQL = `SELECT ?item ?itemLabel ?image WHERE {
+const GENDER_FEMALE = "Q6581072";
+const GENDER_MALE   = "Q6581097";
+
+const SPARQL = `SELECT ?item ?itemLabel ?image ?gender WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
-  ?item wdt:P21 wd:Q6581072 .
+  ?item wdt:P21 ?gender .
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
-} ORDER BY DESC(?sl) LIMIT 1000`;
+} ORDER BY DESC(?sl) LIMIT 1500`;
 
 const SPARQL_URL =
   "https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(SPARQL);
@@ -214,6 +217,13 @@ function writePoolCache(items) {
   catch (_) {}
 }
 
+function genderBucket(genderUrl) {
+  const qid = String(genderUrl || "").split("/").pop();
+  if (qid === GENDER_FEMALE) return "f";
+  if (qid === GENDER_MALE)   return "m";
+  return "x";
+}
+
 async function fetchWikidata() {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 30_000);
@@ -226,13 +236,14 @@ async function fetchWikidata() {
     const data = await r.json();
     const seen = new Map();
     for (const b of (data.results && data.results.bindings) || []) {
-      const qid  = b.item && b.item.value && b.item.value.split("/").pop();
-      const name = b.itemLabel && b.itemLabel.value;
-      const img  = b.image && b.image.value;
+      const qid    = b.item && b.item.value && b.item.value.split("/").pop();
+      const name   = b.itemLabel && b.itemLabel.value;
+      const img    = b.image && b.image.value;
+      const gender = genderBucket(b.gender && b.gender.value);
       if (!qid || !name || !img) continue;
       if (/^Q\d+$/.test(name)) continue;             // unlabeled
       if (seen.has(qid)) continue;                   // first image wins
-      seen.set(qid, { id: qid, name, image_url: thumbify(img, 480) });
+      seen.set(qid, { id: qid, name, gender, image_url: thumbify(img, 480) });
     }
     return [...seen.values()];
   } finally {
@@ -304,9 +315,17 @@ function shuffle(arr) {
 
 function drawNext() {
   const correct = pool[Math.floor(Math.random() * pool.length)];
-  const others = pool.filter((c) => c.name !== correct.name);
-  shuffle(others);
-  const distractors = others.slice(0, CHOICES_PER_ROUND - 1);
+
+  // distractors must share the same gender bucket so the answer can't
+  // be inferred from "the photo is a man, so it's the only male name"
+  let sameGender = pool.filter((c) => c.gender === correct.gender && c.name !== correct.name);
+  if (sameGender.length < CHOICES_PER_ROUND - 1) {
+    // unlikely with a 1500-row pool, but if a gender bucket is too small
+    // (e.g. unspecified), fall back to the whole pool minus the correct one
+    sameGender = pool.filter((c) => c.name !== correct.name);
+  }
+  shuffle(sameGender);
+  const distractors = sameGender.slice(0, CHOICES_PER_ROUND - 1);
   const choices = shuffle([correct, ...distractors]);
   return { correct, choices };
 }
