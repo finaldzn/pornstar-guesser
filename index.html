@@ -41,9 +41,10 @@
   <header class="topbar" hidden>
     <h1 class="logo">Devine la pornstar</h1>
     <div class="score">
+      <div class="metric"><span>Round</span><b id="m-round">0 / 0</b></div>
       <div class="metric"><span>Score</span><b id="m-score">0 / 0</b></div>
       <div class="metric"><span>Série</span><b id="m-streak">0</b></div>
-      <div class="metric"><span>Record</span><b id="m-best">0</b></div>
+      <div class="metric metric-best"><span>Record</span><b id="m-best">0</b></div>
       <div class="share-wrap">
         <button id="m-share" class="ghost" title="Partager mon score" type="button" aria-haspopup="menu">Partager</button>
         <div id="share-menu" class="share-menu" role="menu" hidden>
@@ -60,7 +61,7 @@
 
   <nav id="filters" class="filters" hidden>
     <button class="cat is-active" data-cat="all"      type="button">Toutes</button>
-    <button class="cat"           data-cat="top250"   type="button">Top 250</button>
+    <button class="cat"           data-cat="top200"   type="button">Top 200</button>
     <button class="cat"           data-cat="recent"   type="button">5 dernières années</button>
     <button class="cat"           data-cat="topsites" type="button" title="Les plus vues sur les 3 plus gros sites adultes (liste indicative)">Top 3 sites</button>
   </nav>
@@ -82,6 +83,19 @@
 
       <div class="bar" id="bar"></div>
     </article>
+
+    <section id="summary" class="summary" hidden>
+      <h2 class="summary-title">Run terminé</h2>
+      <div class="summary-score">
+        <span class="summary-num" id="summary-num">0</span>
+        <span class="summary-den" id="summary-den">/ 0</span>
+      </div>
+      <p class="summary-meta" id="summary-meta"></p>
+      <div class="summary-actions">
+        <button id="summary-share"   class="btn-primary" type="button">📤 Partager</button>
+        <button id="summary-restart" class="btn-ghost"   type="button">↻ Recommencer</button>
+      </div>
+    </section>
 
     <p class="hint" id="hint">Chargement de la galerie…</p>
 
