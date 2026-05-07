@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Devine la pornstar</title>
+  <meta name="description" content="Saurez-vous reconnaître les stars du X à partir de leur photo ? Quatre choix, à vous de jouer.">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section id="age-gate" class="age-gate" role="dialog" aria-modal="true" aria-labelledby="age-title">
+    <div class="age-card">
+      <h1 id="age-title">Devine la pornstar</h1>
+      <p class="lede">Mini-jeu : reconnaître une star du cinéma pour adultes parmi quatre noms. Les portraits proviennent de <b>Wikidata / Wikimedia Commons</b> — uniquement des photos encyclopédiques (tapis rouges, AVN Awards, etc.), aucun contenu explicite.</p>
+      <ul class="age-rules">
+        <li>L'accès est réservé aux personnes <b>majeures</b> (18&nbsp;ans et plus).</li>
+        <li>Aucun compte, aucune donnée envoyée : tout reste dans votre navigateur.</li>
+        <li>Si vous n'avez pas l'âge requis, fermez cet onglet.</li>
+      </ul>
+      <div class="age-actions">
+        <button id="age-yes" class="btn-primary" type="button">J'ai 18&nbsp;ans ou plus — entrer</button>
+        <a class="btn-ghost" href="https://www.google.com">Quitter</a>
+      </div>
+    </div>
+  </section>
+
+  <header class="topbar" hidden>
+    <h1 class="logo">Devine la pornstar</h1>
+    <div class="score">
+      <div class="metric"><span>Score</span><b id="m-score">0 / 0</b></div>
+      <div class="metric"><span>Série</span><b id="m-streak">0</b></div>
+      <div class="metric"><span>Record</span><b id="m-best">0</b></div>
+      <button id="m-share" class="ghost" title="Partager mon score" type="button">Partager</button>
+      <button id="m-reset" class="ghost" title="Tout remettre à zéro" type="button">Reset</button>
+    </div>
+  </header>
+
+  <main class="page" hidden>
+    <article class="card" id="card">
+      <div class="frame">
+        <img id="img-front" class="portrait shown" alt="" referrerpolicy="no-referrer">
+        <img id="img-back"  class="portrait"       alt="" referrerpolicy="no-referrer">
+        <div class="caption" id="caption">
+          <div class="who" id="who"></div>
+          <div class="meta" id="meta"></div>
+        </div>
+      </div>
+
+      <div class="choices" id="choices"></div>
+
+      <div class="bar" id="bar"></div>
+    </article>
+
+    <p class="hint" id="hint">Chargement de la galerie…</p>
+
+    <section class="board" id="board" hidden>
+      <h2>Vos meilleurs enchaînements</h2>
+      <ol id="board-list"></ol>
+    </section>
+
+    <section class="recent" id="recent" hidden>
+      <h2>Derniers essais</h2>
+      <ul id="recent-list"></ul>
+    </section>
+
+    <div class="toast" id="toast"></div>
+
+    <footer class="legal">
+      Données ouvertes : Wikidata · photos servies par Wikimedia Commons (licences libres). Site indépendant, sans affiliation avec les personnes représentées. Si une photo ne devrait pas figurer ici, ouvrez une issue sur le dépôt.
+    </footer>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
