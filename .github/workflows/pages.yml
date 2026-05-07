@@ -9,7 +9,7 @@ on:
     - cron: "0 6 * * 1"
 
 permissions:
-  contents: write   # commit refreshed candidates.json back to the branch
+  contents: write   # commit refreshed candidates.json on main only
   pages: write
   id-token: write
 
@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Build candidates.json from Wikidata
+      - name: Build candidates.json from Wikidata + Wikipedia
         run: python3 build_candidates.py > candidates.json
 
       - name: Sanity check
@@ -43,8 +43,22 @@ jobs:
             exit 1
           fi
 
-      - name: Commit refreshed candidates.json (if changed)
+      # Upload on every run so feature-branch dispatches still produce
+      # a downloadable artifact for inspection — without committing to the
+      # branch and creating future merge conflicts.
+      - name: Upload candidates.json as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidates
+          path: candidates.json
+          retention-days: 14
+
+      # Commit only on main. Feature branches are intentionally never given
+      # a candidates.json bot commit — that's what created the divergent-
+      # blob merge conflict pattern we kept hitting.
+      - name: Commit refreshed candidates.json (main only, if changed)
         id: commit
+        if: github.ref == 'refs/heads/main'
         run: |
           if [ -n "$(git status --porcelain candidates.json)" ]; then
             git config user.name  "github-actions[bot]"
@@ -53,17 +67,16 @@ jobs:
             git commit -m "Refresh candidates.json from Wikidata [skip ci]"
             git push
             echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "changed=true"               >> "$GITHUB_OUTPUT"
           else
             echo "candidates.json unchanged"
             echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "changed=false"        >> "$GITHUB_OUTPUT"
           fi
 
   deploy:
-    # Only deploy from main. workflow_dispatch on a feature branch will
-    # still run the build job above and commit candidates.json back to
-    # that branch, but won't touch the Pages deployment.
+    # Only deploy from main. Feature branches still build + sanity-check
+    # candidates.json (uploaded as artifact above) but never publish.
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
