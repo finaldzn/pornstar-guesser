@@ -155,9 +155,11 @@ body {
 .ghost:hover { color: var(--text); border-color: #3a3a47; }
 
 @media (max-width: 520px) {
-  .score { gap: .8rem; }
-  /* Hide reset on phones to save room — share stays so people can post scores */
-  #m-reset { display: none; }
+  .score { gap: .65rem; }
+  /* On phones, hide Reset and the Record column to keep the topbar from
+     wrapping onto two lines. Best streak still appears in the run summary. */
+  #m-reset       { display: none; }
+  .metric-best   { display: none; }
 }
 
 /* ----- share menu ----------------------------------------------------- */
@@ -226,6 +228,72 @@ body {
   color: #fff;
   background: rgba(230,58,140,.22);
   border-color: var(--accent);
+}
+
+/* ----- end-of-run summary -------------------------------------------- */
+
+.summary {
+  background: linear-gradient(180deg, #1c1b26, #15141d);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1.6rem 1.4rem 1.4rem;
+  text-align: center;
+  animation: slip .35s ease;
+}
+.summary-title {
+  margin: 0 0 .3rem;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.summary-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: .25rem;
+  margin: .4rem 0 .6rem;
+}
+.summary-num {
+  font-size: 4rem;
+  font-weight: 900;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #fff, #ffb6da);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1;
+}
+.summary-den {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.summary-meta {
+  margin: 0 0 1.2rem;
+  font-size: .92rem;
+  color: var(--muted);
+}
+.summary-meta b { color: var(--text); font-weight: 700; }
+.summary-actions {
+  display: flex;
+  gap: .55rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.summary-actions .btn-primary,
+.summary-actions .btn-ghost {
+  padding: .75rem 1.1rem;
+  font-size: .9rem;
+}
+.summary-actions .btn-ghost {
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 /* ----- challenge banner ---------------------------------------------- */

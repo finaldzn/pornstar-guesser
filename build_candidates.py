@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import json
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -21,7 +23,8 @@ SPARQL = """
 SELECT ?item ?itemLabel ?image ?gender ?workStart ?birth WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
-  ?item wdt:P21 ?gender .
+  ?item wdt:P21 wd:Q6581072 .
+  BIND(wd:Q6581072 AS ?gender)
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
   OPTIONAL { ?item wdt:P2031 ?workStart . }
@@ -42,7 +45,7 @@ USER_AGENT = (
 )
 
 
-def fetch() -> dict:
+def fetch_once() -> dict:
     url = ENDPOINT + "?format=json&query=" + urllib.parse.quote(SPARQL)
     req = urllib.request.Request(
         url,
@@ -51,8 +54,49 @@ def fetch() -> dict:
             "Accept": "application/sparql-results+json",
         },
     )
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=90) as r:
         return json.load(r)
+
+
+def fetch(max_attempts: int = 6) -> dict:
+    """Wikidata Query Service rate-limits aggressively, and shared CI IPs
+    hit it often enough to get the occasional 429. Honor Retry-After when
+    present, otherwise back off exponentially."""
+    last: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return fetch_once()
+        except urllib.error.HTTPError as e:
+            last = e
+            retryable = e.code in (429, 502, 503, 504)
+            if not retryable or attempt == max_attempts:
+                raise
+            retry_after = e.headers.get("Retry-After") if e.headers else None
+            try:
+                wait = int(retry_after) if retry_after else 0
+            except ValueError:
+                wait = 0
+            wait = max(wait, 2 ** attempt)  # 2,4,8,16,32,64
+            print(
+                f"WDQS returned {e.code}; sleeping {wait}s before "
+                f"retry {attempt + 1}/{max_attempts}",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+        except urllib.error.URLError as e:
+            # Transient network blip (DNS, reset, timeout) — same backoff.
+            last = e
+            if attempt == max_attempts:
+                raise
+            wait = 2 ** attempt
+            print(
+                f"Network error from WDQS ({e}); sleeping {wait}s before "
+                f"retry {attempt + 1}/{max_attempts}",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+    # unreachable; the loop either returns or raises
+    raise RuntimeError("fetch retries exhausted") from last
 
 
 def thumbify(commons_url: str, width: int = 480) -> str:
@@ -76,6 +120,25 @@ def year_of(iso: str) -> int | None:
     import re
     m = re.search(r"-?(\d{4})", iso or "")
     return int(m.group(1)) if m else None
+
+
+def dedupe_by_name(items: list[dict]) -> list[dict]:
+    """Drop entries that share a display name with an earlier entry.
+
+    Wikidata occasionally has two QIDs with the same English label
+    (different people, same stage name). The earlier entry wins, which
+    means the more popular one (we sort by sitelinks descending in SPARQL)
+    survives. Deduping at build time guarantees the game can never put
+    two identical names on the same 4-button choice card."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for c in items:
+        key = (c.get("name") or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
 
 
 def main() -> None:
@@ -105,10 +168,16 @@ def main() -> None:
             "image_url": thumbify(img),
         }
 
-    out = sorted(seen.values(), key=lambda c: c["name"].lower())
+    # SPARQL is sorted by sitelinks DESC. dedupe_by_name keeps the first
+    # entry per name, so the most-cited survives. Then sort by name for
+    # human-readable output.
+    deduped = dedupe_by_name(list(seen.values()))
+    out = sorted(deduped, key=lambda c: c["name"].lower())
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
-    print(f"# {len(out)} candidates", file=sys.stderr)
+    raw = len(seen)
+    print(f"# {len(out)} candidates ({raw - len(out)} duplicate names dropped)",
+          file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 const STORAGE_KEY  = "dlpx.state.v1";
 const SESSION_KEY  = "dlpx.session.v1";
-const POOL_CACHE   = "dlpx.pool.v4";   // v4: includes work-period / birth dates
+const POOL_CACHE   = "dlpx.pool.v5";   // v5: women only
 const AGE_KEY      = "dlpx.age.v1";
 
 const CACHE_TTL_MS     = 7 * 24 * 60 * 60 * 1000;
@@ -10,18 +10,16 @@ const ADVANCE_DELAY_MS = 2400;
 const RECENT_KEEP      = 40;
 const CHOICES_PER_ROUND = 4;
 const MIN_POOL          = CHOICES_PER_ROUND;
-const PRELOAD_AHEAD     = 4;           // portraits warmed in the browser cache
-const TOP_N             = 250;
+const PRELOAD_AHEAD     = 4;            // portraits warmed in the browser cache
+const TOP_N             = 200;          // Top 200 category size
+const RUN_MAX           = 200;          // max round count for any single run
 const RECENT_YEARS      = 5;
-const RECENT_AGE_FALLBACK = 28;        // when work-start unknown, treat <28y old as "recent"
-
-const GENDER_FEMALE = "Q6581072";
-const GENDER_MALE   = "Q6581097";
+const RECENT_AGE_FALLBACK = 28;
 
 // "Top 3 sites" allow-list — performers commonly featured on the top three
 // most-visited adult websites. Matched case-insensitively against the
-// Wikidata label, so any of these only counts if Wikidata also has them
-// (with an image). Edit freely — additions just need the Wikidata label.
+// Wikidata label, so an entry only counts if Wikidata also has them
+// (with an image). Edit freely.
 const TOP_SITES_NAMES = new Set([
   "Mia Khalifa", "Sasha Grey", "Riley Reid", "Lana Rhoades", "Lisa Ann",
   "Asa Akira", "Adriana Chechik", "Jenna Jameson", "Tori Black", "Abella Danger",
@@ -35,10 +33,10 @@ const TOP_SITES_NAMES = new Set([
   "Jesse Jane", "Faye Reagan", "Elsa Jean", "Karla Lane", "Jessie Volt",
 ].map((s) => s.toLowerCase()));
 
-const SPARQL = `SELECT ?item ?itemLabel ?image ?gender ?workStart ?birth WHERE {
+const SPARQL = `SELECT ?item ?itemLabel ?image ?workStart ?birth WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
-  ?item wdt:P21 ?gender .
+  ?item wdt:P21 wd:Q6581072 .
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
   OPTIONAL { ?item wdt:P2031 ?workStart . }
@@ -64,44 +62,53 @@ const SESSION_ID = (() => {
 
 const $ = (id) => document.getElementById(id);
 const ui = {
-  ageGate:   $("age-gate"),
-  ageYes:    $("age-yes"),
-  topbar:    document.querySelector(".topbar"),
-  pageEl:    document.querySelector(".page"),
-  filters:   $("filters"),
-  challenge: $("challenge"),
-  card:      $("card"),
-  imgA:      $("img-front"),
-  imgB:      $("img-back"),
-  cap:       $("caption"),
-  who:       $("who"),
-  meta:      $("meta"),
-  choices:   $("choices"),
-  bar:       $("bar"),
-  hint:      $("hint"),
-  recent:    $("recent"),
-  list:      $("recent-list"),
-  board:     $("board"),
-  boardList: $("board-list"),
-  toast:     $("toast"),
-  score:     $("m-score"),
-  streak:    $("m-streak"),
-  best:      $("m-best"),
-  share:     $("m-share"),
-  reset:     $("m-reset"),
-  shareMenu: $("share-menu"),
+  ageGate:    $("age-gate"),
+  ageYes:     $("age-yes"),
+  topbar:     document.querySelector(".topbar"),
+  pageEl:     document.querySelector(".page"),
+  filters:    $("filters"),
+  challenge:  $("challenge"),
+  card:       $("card"),
+  imgA:       $("img-front"),
+  imgB:       $("img-back"),
+  cap:        $("caption"),
+  who:        $("who"),
+  meta:       $("meta"),
+  choices:    $("choices"),
+  bar:        $("bar"),
+  hint:       $("hint"),
+  recent:     $("recent"),
+  list:       $("recent-list"),
+  board:      $("board"),
+  boardList:  $("board-list"),
+  toast:      $("toast"),
+  round:      $("m-round"),
+  score:      $("m-score"),
+  streak:     $("m-streak"),
+  best:       $("m-best"),
+  share:      $("m-share"),
+  reset:      $("m-reset"),
+  shareMenu:  $("share-menu"),
+  summary:    $("summary"),
+  summaryNum: $("summary-num"),
+  summaryDen: $("summary-den"),
+  summaryMeta:$("summary-meta"),
+  summaryShare:   $("summary-share"),
+  summaryRestart: $("summary-restart"),
 };
 
 let allCandidates = [];                // raw, unfiltered list from Wikidata / cache
-let pool = [];                         // current category-filtered subset
+let pool = [];                         // category-filtered list (drives distractors)
 let currentCategory = "all";
 let current = null;
 let answered = false;
 let timer = null;
 let frontEl = ui.imgA;
 let backEl  = ui.imgB;
-let upcoming = [];                     // queue of pre-built rounds
 const preloadCache = new Map();        // src -> Image, keeps browser cache warm
+
+// Run state — a finite, gamified pass over the pool.
+let run = blankRun();
 
 const state = restore();
 
@@ -109,6 +116,17 @@ const state = restore();
 
 function blank() {
   return { score: 0, attempts: 0, streak: 0, best: 0, recent: [], runs: [] };
+}
+
+function blankRun() {
+  return {
+    items: [],          // ordered list of correct answers, each appears once
+    index: 0,           // 0-based index of current question
+    correct: 0,         // count of correct answers in this run
+    streak: 0,          // current streak in this run
+    best: 0,            // best streak in this run
+    finished: false,
+  };
 }
 
 function restore() {
@@ -126,19 +144,24 @@ function persist() {
 // ----- rendering --------------------------------------------------------
 
 function pop(el) {
+  if (!el) return;
   el.classList.remove("pop");
   void el.offsetWidth;
   el.classList.add("pop");
 }
 
 function paintScore(animate) {
-  ui.score.textContent  = `${state.score} / ${state.attempts}`;
-  ui.streak.textContent = state.streak;
+  const total = run.items.length;
+  const done  = run.index + (answered ? 1 : 0);
+  if (ui.round) ui.round.textContent = total ? `${done} / ${total}` : `0 / 0`;
+  ui.score.textContent  = `${run.correct} / ${done}`;
+  ui.streak.textContent = run.streak;
   ui.best.textContent   = state.best;
   if (animate) {
     pop(ui.score);
+    pop(ui.round);
     pop(ui.streak);
-    if (state.streak > 0 && state.streak === state.best) pop(ui.best);
+    if (run.streak > 0 && state.streak === state.best) pop(ui.best);
   }
 }
 
@@ -161,7 +184,7 @@ function paintBoard() {
   }
 }
 
-function recordRun() {
+function recordStreak() {
   if (state.streak > 0) {
     state.runs = state.runs || [];
     state.runs.push({ length: state.streak, ts: Date.now() });
@@ -177,22 +200,36 @@ function flashToast(msg) {
   flashToast._t = setTimeout(() => ui.toast.classList.remove("show"), 2200);
 }
 
+function categoryLabel(cat) {
+  return ({
+    all:      "Toutes",
+    top200:   "Top 200",
+    recent:   "5 dernières années",
+    topsites: "Top 3 sites",
+  })[cat] || "Toutes";
+}
+
 function buildShareUrl() {
   const base = location.origin + location.pathname;
   const p = new URLSearchParams();
   if (currentCategory && currentCategory !== "all") p.set("cat", currentCategory);
-  if (state.attempts > 0) p.set("score", `${state.score}-${state.attempts}`);
-  if (state.best > 0)     p.set("best",  String(state.best));
-  if (state.streak > 0)   p.set("streak", String(state.streak));
+  if (run.items.length > 0) {
+    p.set("score", `${run.correct}-${run.finished ? run.items.length : run.index + (answered ? 1 : 0)}`);
+  }
+  if (run.best > 0) p.set("streak", String(run.best));
   const q = p.toString();
   return q ? `${base}?${q}` : base;
 }
 
 function buildShareText() {
-  if (state.attempts > 0) {
-    return `🎯 Devine la pornstar — j'ai fait ${state.score}/${state.attempts}` +
-           (state.best > 0 ? ` (record ${state.best} d'affilée)` : "") +
+  const cat = categoryLabel(currentCategory);
+  if (run.finished && run.items.length > 0) {
+    return `🎯 Devine la pornstar (${cat}) — j'ai fait ${run.correct}/${run.items.length}` +
+           (run.best > 1 ? ` (meilleure série : ${run.best})` : "") +
            `. Sauras-tu faire mieux ?`;
+  }
+  if (run.items.length > 0 && run.index > 0) {
+    return `🎯 Devine la pornstar (${cat}) — en cours : ${run.correct}/${run.index + (answered ? 1 : 0)}/${run.items.length}.`;
   }
   return `🎯 Devine la pornstar — sauras-tu reconnaître les stars du X parmi 4 noms ?`;
 }
@@ -200,7 +237,6 @@ function buildShareText() {
 function openShareMenu() {
   if (!ui.shareMenu) return shareNative();
   ui.shareMenu.hidden = false;
-  // close on outside click
   setTimeout(() => {
     document.addEventListener("click", closeShareMenuOnce, { once: true, capture: true });
   }, 0);
@@ -276,6 +312,22 @@ function paintRecent() {
 
 // ----- candidate pool ---------------------------------------------------
 
+function dedupeByName(items) {
+  // Wikidata occasionally has two QIDs sharing the same English label
+  // (different people, same stage name). Deduplicate so a round can't
+  // ever show the same name twice — neither across consecutive questions
+  // nor inside a single 4-button choice list.
+  const seen = new Set();
+  const out = [];
+  for (const c of items || []) {
+    const key = (c.name || "").trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
+}
+
 function thumbify(commonsUrl, width) {
   let u = String(commonsUrl).replace(/^http:\/\//, "https://");
   if (u.includes("Special:FilePath")) {
@@ -300,16 +352,9 @@ function writePoolCache(items) {
   catch (_) {}
 }
 
-function genderBucket(genderUrl) {
-  const qid = String(genderUrl || "").split("/").pop();
-  if (qid === GENDER_FEMALE) return "f";
-  if (qid === GENDER_MALE)   return "m";
-  return "x";
-}
-
 function yearOf(iso) {
   if (!iso) return null;
-  const m = String(iso).match(/-?(\d{4})/);  // handles "1985-..." and "-0500-..."
+  const m = String(iso).match(/-?(\d{4})/);
   return m ? parseInt(m[1], 10) : null;
 }
 
@@ -328,20 +373,18 @@ async function fetchWikidata() {
       const qid    = b.item && b.item.value && b.item.value.split("/").pop();
       const name   = b.itemLabel && b.itemLabel.value;
       const img    = b.image && b.image.value;
-      const gender = genderBucket(b.gender && b.gender.value);
       const ws     = yearOf(b.workStart && b.workStart.value);
       const bd     = yearOf(b.birth && b.birth.value);
       if (!qid || !name || !img) continue;
-      if (/^Q\d+$/.test(name)) continue;             // unlabeled
+      if (/^Q\d+$/.test(name)) continue;
       if (seen.has(qid)) {
-        // dates may show up on later rows for the same item; merge them in
         const prev = seen.get(qid);
         if (ws && (!prev.workStart || ws < prev.workStart)) prev.workStart = ws;
         if (bd && !prev.birth) prev.birth = bd;
         continue;
       }
       seen.set(qid, {
-        id: qid, name, gender,
+        id: qid, name, gender: "f",
         workStart: ws || null,
         birth:     bd || null,
         image_url: thumbify(img, 480),
@@ -354,13 +397,16 @@ async function fetchWikidata() {
 }
 
 async function loadPool() {
-  // 1) static file shipped alongside the site (optional)
+  // 1) static file shipped alongside the site (preferred)
   try {
     const r = await fetch("candidates.json", { cache: "no-store" });
     if (r.ok) {
       const items = await r.json();
       if (Array.isArray(items) && items.length >= MIN_POOL) {
-        allCandidates = items;
+        // legacy candidates.json may include men — filter on read.
+        allCandidates = dedupeByName(
+          items.filter((c) => !c.gender || c.gender === "f")
+        );
         applyCategory(currentCategory);
         ui.hint.textContent = `${allCandidates.length} stars chargées.`;
         return true;
@@ -371,7 +417,7 @@ async function loadPool() {
   // 2) fresh-enough cache from a previous Wikidata fetch
   const cached = readPoolCache();
   if (cached) {
-    allCandidates = cached;
+    allCandidates = dedupeByName(cached);
     applyCategory(currentCategory);
     ui.hint.textContent = `${allCandidates.length} stars chargées (cache local).`;
     refreshPoolInBackground();
@@ -382,8 +428,8 @@ async function loadPool() {
   try {
     const items = await fetchWikidata();
     if (items.length >= MIN_POOL) {
-      allCandidates = items;
-      writePoolCache(items);
+      allCandidates = dedupeByName(items);
+      writePoolCache(allCandidates);
       applyCategory(currentCategory);
       ui.hint.textContent = `${allCandidates.length} stars chargées depuis Wikidata.`;
       return true;
@@ -402,9 +448,10 @@ function refreshPoolInBackground() {
   fetchWikidata()
     .then((items) => {
       if (items.length >= MIN_POOL) {
-        writePoolCache(items);
-        allCandidates = items;
-        applyCategory(currentCategory);
+        const fresh = dedupeByName(items);
+        writePoolCache(fresh);
+        allCandidates = fresh;
+        // don't restart a run mid-session just because the cache refreshed
       }
     })
     .catch(() => {});
@@ -423,7 +470,7 @@ function isTopSites(c) {
 
 function applyCategory(cat) {
   currentCategory = cat;
-  if (cat === "top250") {
+  if (cat === "top200") {
     pool = allCandidates.slice(0, TOP_N);
   } else if (cat === "recent") {
     pool = allCandidates.filter(isRecent);
@@ -432,19 +479,16 @@ function applyCategory(cat) {
   } else {
     pool = allCandidates.slice();
   }
-  // reset queue + restart with the new pool
-  upcoming.length = 0;
   if (ui.filters) {
     for (const b of ui.filters.querySelectorAll(".cat")) {
       b.classList.toggle("is-active", b.dataset.cat === currentCategory);
     }
   }
   if (pool.length >= MIN_POOL) {
-    nextRound();
+    startRun();
   } else if (allCandidates.length) {
-    // category emptied the pool — tell the user instead of silently freezing
     ui.hint.classList.remove("error");
-    ui.hint.textContent = "Pas assez de stars dans cette catégorie — essayez une autre.";
+    ui.hint.textContent = "Pas assez de stars dans cette catégorie — essayez-en une autre.";
   }
 }
 
@@ -456,21 +500,27 @@ function shuffle(arr) {
   return arr;
 }
 
-function drawNext() {
-  const correct = pool[Math.floor(Math.random() * pool.length)];
+function startRun() {
+  clearTimeout(timer);
+  preloadCache.clear();
+  const items = shuffle(pool.slice()).slice(0, Math.min(pool.length, RUN_MAX));
+  run = blankRun();
+  run.items = items;
+  hideSummary();
+  paintScore(false);
+  if (run.items.length === 0) return;
+  nextRound();
+}
 
-  // distractors must share the same gender bucket so the answer can't
-  // be inferred from "the photo is a man, so it's the only male name"
-  let sameGender = pool.filter((c) => c.gender === correct.gender && c.name !== correct.name);
-  if (sameGender.length < CHOICES_PER_ROUND - 1) {
-    // unlikely with a 1500-row pool, but if a gender bucket is too small
-    // (e.g. unspecified), fall back to the whole pool minus the correct one
-    sameGender = pool.filter((c) => c.name !== correct.name);
-  }
-  shuffle(sameGender);
-  const distractors = sameGender.slice(0, CHOICES_PER_ROUND - 1);
-  const choices = shuffle([correct, ...distractors]);
-  return { correct, choices };
+function pickChoices(correct) {
+  // distractors: any other candidate, but never the same display name
+  // as the correct answer (defensive — pool is already name-deduped)
+  const correctName = (correct.name || "").trim().toLowerCase();
+  let bucket = pool.filter((c) =>
+    c.id !== correct.id && (c.name || "").trim().toLowerCase() !== correctName);
+  shuffle(bucket);
+  const distractors = bucket.slice(0, CHOICES_PER_ROUND - 1);
+  return shuffle([correct, ...distractors]);
 }
 
 function preload(src) {
@@ -480,18 +530,17 @@ function preload(src) {
   img.decoding = "async";
   img.src = src;
   preloadCache.set(src, img);
-  // cap the cache so it can't grow unbounded across long sessions
   if (preloadCache.size > 64) {
     const firstKey = preloadCache.keys().next().value;
     preloadCache.delete(firstKey);
   }
 }
 
-function fillUpcoming() {
-  while (upcoming.length < PRELOAD_AHEAD && pool.length >= MIN_POOL) {
-    const round = drawNext();
-    upcoming.push(round);
-    preload(round.correct.image_url);
+function preloadAhead() {
+  for (let i = run.index + 1;
+       i < Math.min(run.index + PRELOAD_AHEAD + 1, run.items.length);
+       i++) {
+    preload(run.items[i].image_url);
   }
 }
 
@@ -516,62 +565,69 @@ function swapPortrait(src) {
     [frontEl, backEl] = [backEl, frontEl];
     if (current) current.shownAt = performance.now();
   };
-  backEl.onerror = () => {
-    // photo gone stale — skip
-    nextRound();
-  };
+  backEl.onerror = () => { advanceRound(); };
   backEl.src = src;
 }
 
 function nextRound() {
   clearTimeout(timer);
-  if (pool.length < MIN_POOL) return;
+  if (run.index >= run.items.length) { finishRun(); return; }
 
-  fillUpcoming();
-  const round = upcoming.shift() || drawNext();
-  current  = round.correct;
+  current  = run.items[run.index];
   answered = false;
 
   ui.cap.classList.remove("visible");
   ui.bar.classList.remove("run");
 
-  renderChoices(round.choices);
+  renderChoices(pickChoices(current));
   swapPortrait(current.image_url);
-
-  // top the queue back up and warm the browser cache for the rounds after this one
-  fillUpcoming();
+  paintScore(false);
+  preloadAhead();
 }
 
 function answer(name) {
   if (answered || !current) return;
   answered = true;
 
-  const correct = name === current.name;
+  const isCorrect = name === current.name;
+
+  // run-scoped stats
+  if (isCorrect) {
+    run.correct += 1;
+    run.streak  += 1;
+    if (run.streak > run.best) run.best = run.streak;
+  } else {
+    run.streak = 0;
+  }
+
+  // lifetime stats (kept for top-runs board across runs)
   state.attempts += 1;
-  if (correct) {
+  if (isCorrect) {
     state.score  += 1;
     state.streak += 1;
     if (state.streak > state.best) state.best = state.streak;
   } else {
-    recordRun();
+    recordStreak();
     state.streak = 0;
   }
 
   for (const b of ui.choices.children) {
     b.disabled = true;
-    if (b.dataset.name === current.name)            b.classList.add("was-correct");
-    else if (b.dataset.name === name && !correct)   b.classList.add("was-wrong");
+    if (b.dataset.name === current.name)               b.classList.add("was-correct");
+    else if (b.dataset.name === name && !isCorrect)    b.classList.add("was-wrong");
   }
 
   ui.who.textContent  = current.name;
-  ui.meta.textContent = correct ? "Bonne réponse" : `Mauvaise réponse — c'était ${current.name}`;
+  ui.meta.textContent = isCorrect
+    ? "Bonne réponse"
+    : `Mauvaise réponse — c'était ${current.name}`;
   ui.cap.classList.add("visible");
 
   state.recent.unshift({
     name:    current.name,
     image:   current.image_url,
     guess:   name,
-    correct,
+    correct: isCorrect,
   });
   if (state.recent.length > RECENT_KEEP) state.recent.length = RECENT_KEEP;
 
@@ -583,7 +639,53 @@ function answer(name) {
   ui.bar.style.setProperty("--ms", ADVANCE_DELAY_MS + "ms");
   void ui.bar.offsetWidth;
   ui.bar.classList.add("run");
-  timer = setTimeout(nextRound, ADVANCE_DELAY_MS);
+  timer = setTimeout(advanceRound, ADVANCE_DELAY_MS);
+}
+
+function advanceRound() {
+  clearTimeout(timer);
+  run.index += 1;
+  if (run.index >= run.items.length) finishRun();
+  else nextRound();
+}
+
+// ----- end-of-run summary -----------------------------------------------
+
+function finishRun() {
+  run.finished = true;
+  // Bank the run's best streak into the top-runs board
+  if (run.best > 0) {
+    state.runs = state.runs || [];
+    state.runs.push({ length: run.best, ts: Date.now() });
+    state.runs.sort((a, b) => b.length - a.length || b.ts - a.ts);
+    if (state.runs.length > 50) state.runs.length = 50;
+    persist();
+  }
+  showSummary();
+}
+
+function showSummary() {
+  if (!ui.summary) return;
+  if (ui.summaryNum) ui.summaryNum.textContent = String(run.correct);
+  if (ui.summaryDen) ui.summaryDen.textContent = `/ ${run.items.length}`;
+  if (ui.summaryMeta) {
+    const cat = categoryLabel(currentCategory);
+    const pct = run.items.length ? Math.round((run.correct / run.items.length) * 100) : 0;
+    const bits = [`<b>${cat}</b>`, `${pct}%`];
+    if (run.best > 1) bits.push(`meilleure série : <b>${run.best}</b>`);
+    ui.summaryMeta.innerHTML = bits.join(" · ");
+  }
+  ui.summary.hidden = false;
+  ui.card.hidden    = true;
+  paintBoard();
+  paintRecent();
+  // drop the stale challenge banner — the run we were challenged on is over
+  if (ui.challenge) ui.challenge.hidden = true;
+}
+
+function hideSummary() {
+  if (ui.summary) ui.summary.hidden = true;
+  if (ui.card)    ui.card.hidden    = false;
 }
 
 // ----- input handling ---------------------------------------------------
@@ -594,13 +696,11 @@ ui.choices.addEventListener("click", (e) => {
 });
 
 ui.card.addEventListener("click", (e) => {
-  if (answered && !e.target.closest(".choice")) {
-    clearTimeout(timer);
-    nextRound();
-  }
+  if (answered && !e.target.closest(".choice")) advanceRound();
 });
 
 document.addEventListener("keydown", (e) => {
+  if (run.finished) return;
   if (!answered && e.key >= "1" && e.key <= "4") {
     const i = parseInt(e.key, 10) - 1;
     const btn = ui.choices.children[i];
@@ -609,19 +709,20 @@ document.addEventListener("keydown", (e) => {
   }
   if (answered && (e.key === " " || e.key === "Enter" || e.key === "ArrowRight")) {
     e.preventDefault();
-    clearTimeout(timer);
-    nextRound();
+    advanceRound();
   }
 });
 
-ui.reset.addEventListener("click", () => {
-  if (!confirm("Tout remettre à zéro (score, série et historique) ?")) return;
-  Object.assign(state, blank());
-  persist();
-  paintScore(false);
-  paintRecent();
-  paintBoard();
-});
+if (ui.reset) {
+  ui.reset.addEventListener("click", () => {
+    if (!confirm("Tout remettre à zéro (score, série et historique) ?")) return;
+    Object.assign(state, blank());
+    persist();
+    paintRecent();
+    paintBoard();
+    if (allCandidates.length) startRun();
+  });
+}
 
 ui.share.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -635,11 +736,18 @@ if (ui.shareMenu) {
     const b = e.target.closest("[data-share]");
     if (!b) return;
     const t = b.dataset.share;
-    if (t === "copy")     shareCopy();
+    if      (t === "copy")   shareCopy();
     else if (t === "native") shareNative();
-    else                  shareTo(t);
+    else                     shareTo(t);
     closeShareMenu();
   });
+}
+
+if (ui.summaryShare) {
+  ui.summaryShare.addEventListener("click", () => shareNative());
+}
+if (ui.summaryRestart) {
+  ui.summaryRestart.addEventListener("click", () => startRun());
 }
 
 if (ui.filters) {
@@ -648,7 +756,6 @@ if (ui.filters) {
     if (!b) return;
     const cat = b.dataset.cat;
     if (cat && cat !== currentCategory && allCandidates.length) {
-      // refresh URL so reload / share keeps the category
       const p = new URLSearchParams(location.search);
       if (cat === "all") p.delete("cat");
       else               p.set("cat", cat);
@@ -671,20 +778,18 @@ function dismissAgeGate() {
 function readIncomingParams() {
   const p = new URLSearchParams(location.search);
   const cat = p.get("cat");
-  if (cat === "top250" || cat === "recent" || cat === "topsites" || cat === "all") {
+  if (cat === "top200" || cat === "recent" || cat === "topsites" || cat === "all") {
     currentCategory = cat;
   }
 
   const incomingScore  = p.get("score");
   const incomingStreak = p.get("streak");
-  const incomingBest   = p.get("best");
   if (!incomingScore && !incomingStreak) return;
 
   if (!ui.challenge) return;
   const bits = [];
   if (incomingScore)  bits.push(`<b>${incomingScore.replace("-", "/")}</b>`);
   if (incomingStreak) bits.push(`série <b>${incomingStreak}</b>`);
-  if (incomingBest && incomingBest !== incomingStreak) bits.push(`record <b>${incomingBest}</b>`);
   ui.challenge.innerHTML =
     `🎯 Un·e ami·e a fait ${bits.join(" · ")}. Sauras-tu faire mieux ?` +
     ` <button class="challenge-close" type="button" aria-label="Fermer">×</button>`;
@@ -699,7 +804,7 @@ async function boot() {
   paintScore(false);
   paintRecent();
   paintBoard();
-  await loadPool();   // applyCategory inside loadPool kicks off the first round
+  await loadPool();
 }
 
 ui.ageYes.addEventListener("click", () => {
