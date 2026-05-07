@@ -31,7 +31,14 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Build candidates.json from Wikidata + Wikipedia
+      - name: Build candidates.json from Wikidata + Wikipedia (+ optional Google KG)
+        env:
+          # Optional. If you set repo Settings -> Secrets -> Actions ->
+          # GOOGLE_API_KEY (with Knowledge Graph Search API enabled in the
+          # corresponding Google Cloud project), Stage 6 will enrich the
+          # pool with curated names via kgsearch.googleapis.com. Without
+          # the secret the stage logs "skipping" and exits cleanly.
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: python3 build_candidates.py > candidates.json
 
       - name: Sanity check
