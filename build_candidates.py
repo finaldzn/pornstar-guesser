@@ -9,10 +9,14 @@ Four-stage source — each one strictly grows coverage:
             image attached.
 
   Stage 2 — Wikidata SPARQL again, same population without P18 but
-            linked to an English Wikipedia article.
+            linked to a Wikipedia article in any language. Articles
+            are GROUP_CONCAT'd per item.
 
-  Stage 3 — Wikipedia REST `summary` endpoint, called in parallel for
-            stage 2 entries, to pull the page image.
+  Stage 3 — Wikipedia REST `summary` endpoint, called in parallel.
+            For each entry we try its article URLs in language
+            priority order (en > fr > ja > de > ...) until one
+            returns a thumbnail. Catches performers whose only
+            Wikipedia page is in a non-English edition.
 
   Stage 4 — Wikipedia categories: walk
             "Category:Pornographic film actresses by nationality"
@@ -23,13 +27,12 @@ Four-stage source — each one strictly grows coverage:
             Surfaces performers Wikipedia has categorized but Wikidata
             hasn't yet tagged with P106=Q488111.
 
-  Stage 5 — OnlyFans tag: SPARQL for female entries that have an
-            OnlyFans username on Wikidata (P10934). The QIDs are
-            cross-referenced against the merged candidate list and
-            an `onlyfans: true` flag is added in place — no new
-            entries are introduced (we want "people we already have
-            who also have an OnlyFans"). The game uses this flag for
-            the OnlyFans category.
+  Stage 5 — OnlyFans tag: discovers Wikidata properties whose
+            formatter URL contains "onlyfans.com" (so we don't
+            hard-code a property ID that may change), then collects
+            QIDs of female people with any of those properties and
+            sets `onlyfans: true` on entries we already have. No
+            new entries introduced.
 
 The output JSON shape is unchanged — every entry is
 {id, name, gender, workStart, birth, image_url}.
@@ -67,39 +70,49 @@ ORDER BY DESC(?sl)
 LIMIT 1500
 """
 
-# Same population, without an image on Wikidata but linked to an English
-# Wikipedia article — Wikipedia's pageimages cover many performers Wikidata
-# doesn't.
+# Same population, without an image on Wikidata but linked to ANY-language
+# Wikipedia article. We GROUP_CONCAT the articles so we get one row per
+# item with all available language editions in `articles`. Stage 3 then
+# tries them in language priority order until one returns an image.
 SPARQL_NO_IMAGE = """
-SELECT ?item ?itemLabel ?article ?workStart ?birth ?country WHERE {
+SELECT ?item ?itemLabel
+       (GROUP_CONCAT(DISTINCT ?article; SEPARATOR="|") AS ?articles)
+       (SAMPLE(?workStart) AS ?workStart)
+       (SAMPLE(?birth) AS ?birth)
+       (SAMPLE(?country) AS ?country)
+       (MAX(?sl) AS ?slMax)
+WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
   ?item wdt:P21 wd:Q6581072 .
   FILTER NOT EXISTS { ?item wdt:P18 ?_img }
   ?article schema:about ?item ;
-           schema:isPartOf <https://en.wikipedia.org/> .
+           schema:isPartOf ?wiki .
+  ?wiki wikibase:wikiGroup "wikipedia" .
   ?item wikibase:sitelinks ?sl .
   OPTIONAL { ?item wdt:P2031 ?workStart . }
   OPTIONAL { ?item wdt:P569 ?birth . }
   OPTIONAL { ?item wdt:P27 ?country . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
 }
-ORDER BY DESC(?sl)
-LIMIT 1500
+GROUP BY ?item ?itemLabel
+ORDER BY DESC(MAX(?sl))
+LIMIT 2000
 """
 
-# Female entries on Wikidata that have an OnlyFans username (P10934).
-# We don't filter to Q488111 here — many people with an OnlyFans aren't
-# tagged as adult performers on Wikidata. We only use these QIDs to add
-# an `onlyfans: true` flag to entries we already have from stages 1-4;
-# entries unique to this query are discarded (no image / no context).
-SPARQL_ONLYFANS = """
-SELECT ?item WHERE {
-  ?item wdt:P10934 ?onlyfans .
-  ?item wdt:P21 wd:Q6581072 .
+# Discover Wikidata property whose formatter URL points at onlyfans.com
+# instead of hard-coding a property ID that may change. Returns the PIDs.
+SPARQL_DISCOVER_ONLYFANS = """
+SELECT ?prop WHERE {
+  ?prop wdt:P1630 ?formatter .
+  FILTER(CONTAINS(LCASE(STR(?formatter)), "onlyfans.com"))
 }
-LIMIT 5000
+LIMIT 10
 """
+
+# Language priority for Wikipedia REST fallbacks. First match with an
+# image wins. Add languages freely.
+LANG_PRIORITY = ["en", "fr", "ja", "de", "es", "it", "pt", "ru", "zh", "ko", "nl"]
 
 # Wikipedia category names start with a nationality demonym; map the most
 # common ones to their Wikidata country QID so we can tag stage 4 entries
@@ -282,40 +295,57 @@ def parse_primary(data: dict) -> list[dict]:
     return list(seen.values())
 
 
+def _sort_articles_by_lang(urls: list[str]) -> list[str]:
+    """Order Wikipedia article URLs by LANG_PRIORITY (en first, then fr,
+    ja, de, ...). Unknown languages go last."""
+    def key(u: str) -> tuple[int, str]:
+        m = re.match(r"^https?://([^.]+)\.wikipedia\.org/", u)
+        if not m:
+            return (999, u)
+        lang = m.group(1)
+        try:
+            return (LANG_PRIORITY.index(lang), u)
+        except ValueError:
+            return (100, u)
+    return sorted(urls, key=key)
+
+
 def parse_no_image(data: dict) -> list[dict]:
-    seen: dict[str, dict] = {}
+    out: list[dict] = []
     for b in data.get("results", {}).get("bindings", []):
         qid = b.get("item", {}).get("value", "").rsplit("/", 1)[-1]
         name = b.get("itemLabel", {}).get("value", "").strip()
-        article = b.get("article", {}).get("value", "")
+        articles_raw = b.get("articles", {}).get("value", "")
         ws = year_of(b.get("workStart", {}).get("value", ""))
         bd = year_of(b.get("birth", {}).get("value", ""))
         country = _qid_from_uri(b.get("country", {}).get("value", ""))
-        if not (qid and name and article):
+        if not (qid and name and articles_raw):
             continue
         if name == qid:
             continue
-        if qid in seen:
-            _merge_dates(seen[qid], ws, bd)
-            if country and not seen[qid].get("country"):
-                seen[qid]["country"] = country
+        articles = [u for u in articles_raw.split("|") if u]
+        if not articles:
             continue
-        seen[qid] = {
+        out.append({
             "id": qid, "name": name, "gender": "f",
             "workStart": ws, "birth": bd, "country": country,
-            "_article": article,
-        }
-    return list(seen.values())
+            "_articles": _sort_articles_by_lang(articles),
+        })
+    return out
 
 # ---- Wikipedia summary lookups ------------------------------------------
 
 def wikipedia_image(article_url: str) -> str | None:
-    """Fetch Wikipedia's REST summary for the article URL, return the
-    largest available image (originalimage > thumbnail), or None."""
-    title = article_url.rsplit("/wiki/", 1)[-1]
-    title = urllib.parse.unquote(title)
+    """Fetch Wikipedia's REST summary for the article URL (any language),
+    return the largest available image (originalimage > thumbnail) or None.
+    Handles en./fr./ja./etc. — the language is read off the URL host."""
+    m = re.match(r"^(https?://[^.]+\.wikipedia\.org)/wiki/(.+)$", article_url)
+    if not m:
+        return None
+    host = m.group(1).replace("http://", "https://", 1)
+    title = urllib.parse.unquote(m.group(2))
     encoded = urllib.parse.quote(title.replace(" ", "_"), safe=":/()")
-    url = WIKIPEDIA_SUMMARY + encoded
+    url = f"{host}/api/rest_v1/page/summary/{encoded}"
     try:
         data = _request(url, timeout=WIKIPEDIA_TIMEOUT_S)
     except Exception:
@@ -325,13 +355,27 @@ def wikipedia_image(article_url: str) -> str | None:
     return orig or thumb
 
 
+def wikipedia_image_multi(article_urls: list[str]) -> str | None:
+    """Try each article URL in order (already sorted by LANG_PRIORITY).
+    Return the first image found, or None if all languages strike out."""
+    for url in article_urls:
+        img = wikipedia_image(url)
+        if img:
+            return img
+    return None
+
+
 def backfill_images(entries: list[dict]) -> list[dict]:
-    """Take entries that have _article set, fetch a Wikipedia thumbnail
-    for each, return the subset that got an image (with image_url filled)."""
+    """Take entries that have _articles set (sorted by language priority),
+    fetch a Wikipedia thumbnail for the first language that has one,
+    return the subset that got an image (with image_url filled)."""
     pool_in = entries[:BACKFILL_CAP]
     out: list[dict] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=BACKFILL_WORKERS) as ex:
-        futures = {ex.submit(wikipedia_image, e["_article"]): e for e in pool_in}
+        futures = {
+            ex.submit(wikipedia_image_multi, e["_articles"]): e
+            for e in pool_in
+        }
         done = 0
         for fut in concurrent.futures.as_completed(futures):
             e = futures[fut]
@@ -343,7 +387,7 @@ def backfill_images(entries: list[dict]) -> list[dict]:
             if not img:
                 continue
             e["image_url"] = thumbify(img)
-            e.pop("_article", None)
+            e.pop("_articles", None)
             out.append(e)
     return out
 
@@ -460,13 +504,40 @@ def _country_for_subcat(subcat: str) -> str | None:
 
 
 def fetch_onlyfans_qids() -> set[str]:
-    """Return QIDs of female people on Wikidata with an OnlyFans username
-    (P10934). We use this only to set an `onlyfans: true` flag on entries
-    we already have — never to introduce new entries."""
+    """Return QIDs of female people on Wikidata that have an OnlyFans link.
+
+    We don't hard-code the property ID (Wikidata adds new external-id
+    properties periodically and any one PID may be deprecated). Instead
+    we discover all properties whose formatter URL contains
+    "onlyfans.com" and UNION them into a single query for female people.
+    """
     try:
-        data = fetch_sparql(SPARQL_ONLYFANS)
+        data = fetch_sparql(SPARQL_DISCOVER_ONLYFANS)
     except Exception as e:
-        print(f"  OnlyFans SPARQL failed: {e}", file=sys.stderr)
+        print(f"  OnlyFans property discovery failed: {e}", file=sys.stderr)
+        return set()
+    pids = []
+    for b in data.get("results", {}).get("bindings", []):
+        pid = b.get("prop", {}).get("value", "").rsplit("/", 1)[-1]
+        if pid.startswith("P"):
+            pids.append(pid)
+    if not pids:
+        print("  No Wikidata property points at onlyfans.com", file=sys.stderr)
+        return set()
+    print(f"  Discovered OnlyFans-formatter properties: {pids}", file=sys.stderr)
+
+    union = " UNION ".join(f"{{ ?item wdt:{p} ?_of }}" for p in pids)
+    sparql = f"""
+SELECT DISTINCT ?item WHERE {{
+  {{ {union} }}
+  ?item wdt:P21 wd:Q6581072 .
+}}
+LIMIT 5000
+"""
+    try:
+        data = fetch_sparql(sparql)
+    except Exception as e:
+        print(f"  OnlyFans QID query failed: {e}", file=sys.stderr)
         return set()
     out: set[str] = set()
     for b in data.get("results", {}).get("bindings", []):
@@ -557,13 +628,15 @@ def main() -> None:
     primary = parse_primary(fetch_sparql(SPARQL_PRIMARY))
     print(f"  -> {len(primary)} entries", file=sys.stderr)
 
-    print("Stage 2: SPARQL — performers without P18 but with English Wikipedia",
+    print("Stage 2: SPARQL — performers without P18 but with any-lang Wikipedia",
           file=sys.stderr)
     candidates_for_backfill = parse_no_image(fetch_sparql(SPARQL_NO_IMAGE))
-    print(f"  -> {len(candidates_for_backfill)} candidates to try",
+    total_articles = sum(len(e.get("_articles") or []) for e in candidates_for_backfill)
+    print(f"  -> {len(candidates_for_backfill)} candidates "
+          f"({total_articles} article URLs across all languages)",
           file=sys.stderr)
 
-    print("Stage 3: Wikipedia REST summaries — fetching thumbnails",
+    print("Stage 3: Wikipedia REST summaries — multi-language fallback",
           file=sys.stderr)
     backfilled = backfill_images(candidates_for_backfill)
     print(f"  -> {len(backfilled)} got an image", file=sys.stderr)
@@ -575,7 +648,8 @@ def main() -> None:
     combined = primary + backfilled + cat_entries
     deduped = merge_by_name(combined)
 
-    print("Stage 5: OnlyFans tagging via Wikidata P10934", file=sys.stderr)
+    print("Stage 5: OnlyFans tagging via discovered Wikidata properties",
+          file=sys.stderr)
     of_qids = fetch_onlyfans_qids()
     print(f"  -> {len(of_qids)} QIDs with an OnlyFans username on Wikidata",
           file=sys.stderr)
