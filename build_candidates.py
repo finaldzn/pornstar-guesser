@@ -34,6 +34,13 @@ Four-stage source — each one strictly grows coverage:
             sets `onlyfans: true` on entries we already have. No
             new entries introduced.
 
+  Stage 6 — Google Knowledge Graph (optional): for each name in
+            GOOGLE_KG_NAMES that isn't already in the pool, query
+            kgsearch.googleapis.com for a Person entity with an
+            image. Adds NEW entries with a synthetic id "KG:..."
+            plus an optional `description` field. Gated on the
+            GOOGLE_API_KEY env var; skipped silently when absent.
+
 The output JSON shape is unchanged — every entry is
 {id, name, gender, workStart, birth, image_url}.
 
@@ -45,6 +52,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import os
 import re
 import sys
 import time
@@ -158,9 +166,36 @@ NATIONALITY_TO_COUNTRY = {
     "Venezuelan": "Q717",
 }
 
-WIKIDATA_ENDPOINT = "https://query.wikidata.org/sparql"
-WIKIPEDIA_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
-WIKIPEDIA_API     = "https://en.wikipedia.org/w/api.php"
+WIKIDATA_ENDPOINT  = "https://query.wikidata.org/sparql"
+WIKIPEDIA_SUMMARY  = "https://en.wikipedia.org/api/rest_v1/page/summary/"
+WIKIPEDIA_API      = "https://en.wikipedia.org/w/api.php"
+GOOGLE_KG_ENDPOINT = "https://kgsearch.googleapis.com/v1/entities:search"
+
+# Curated list of well-known names to look up via Google Knowledge Graph
+# (only when GOOGLE_API_KEY is set). Anything already in the pool is
+# skipped, so this only ADDS — usually performers Wikidata doesn't index
+# yet (newer OnlyFans-era names especially). Edit freely.
+GOOGLE_KG_NAMES = [
+    # Top-sites well-known
+    "Mia Khalifa", "Sasha Grey", "Riley Reid", "Lana Rhoades", "Lisa Ann",
+    "Asa Akira", "Adriana Chechik", "Jenna Jameson", "Tori Black",
+    "Abella Danger", "Angela White", "Brandi Love", "Stoya", "Kendra Lust",
+    "Madison Ivy", "Phoenix Marie", "Nicole Aniston", "Romi Rain",
+    "Kayden Kross", "Bonnie Rotten", "Eva Lovia", "Dani Daniels",
+    "Aletta Ocean", "Nina Hartley", "Belle Knox", "Bree Olson",
+    "Christy Mack", "Janice Griffith", "Jenna Haze", "Lexi Belle",
+    "Nikki Benz", "Stormy Daniels", "Sunny Leone", "Tasha Reign",
+    "Veronica Avluv", "Aaliyah Hadid", "Mia Malkova", "Cherie DeVille",
+    "Alexis Texas", "Remy LaCroix", "August Ames", "Tera Patrick",
+    "Esperanza Gomez", "Eva Angelina", "Gianna Michaels", "Jesse Jane",
+    "Faye Reagan", "Elsa Jean", "Karla Lane", "Jessie Volt",
+    # OnlyFans-leaning
+    "Belle Delphine", "Eva Elfie", "Sweetie Fox", "Lena Paul",
+    "Autumn Falls", "Jia Lissa", "Emily Willis", "Gabbie Carter",
+    "Whitney Wright", "Kira Noir", "Skylar Vox", "Karma RX",
+    "Olivia Austin", "Ava Addams", "Cory Chase", "Veronica Leal",
+    "Lacy Lennon", "Adira Allure", "Lela Star",
+]
 
 USER_AGENT = (
     "guess-the-pornstar/1.2 "
@@ -547,6 +582,86 @@ LIMIT 5000
     return out
 
 
+def google_kg_lookup(name: str, api_key: str) -> dict | None:
+    """Query Google Knowledge Graph for a Person entity matching `name`.
+    Return {name, description, image_url, kg_id} or None."""
+    params = {
+        "query": name,
+        "key": api_key,
+        "limit": "3",
+        "types": "Person",
+        "languages": "en",
+    }
+    qs = "&".join(
+        f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in params.items()
+    )
+    url = f"{GOOGLE_KG_ENDPOINT}?{qs}"
+    try:
+        data = _request(url, timeout=12)
+    except Exception:
+        return None
+    for item in data.get("itemListElement", []):
+        r = item.get("result") or {}
+        # @type can be a string or a list — normalize.
+        types = r.get("@type") or []
+        if isinstance(types, str):
+            types = [types]
+        if "Person" not in types:
+            continue
+        img = (r.get("image") or {}).get("contentUrl")
+        if not img:
+            continue
+        return {
+            "name":        r.get("name") or name,
+            "description": (r.get("description") or "").strip(),
+            "image_url":   img,
+            "kg_id":       r.get("@id") or "",
+        }
+    return None
+
+
+def stage6_google_kg(existing: list[dict]) -> list[dict]:
+    """Optional: enrich the pool with curated names via Google Knowledge
+    Graph. Only adds new entries (never overwrites existing). Skipped
+    when GOOGLE_API_KEY isn't set in the environment."""
+    api_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+    if not api_key:
+        print("  GOOGLE_API_KEY not set; skipping Google KG enrichment",
+              file=sys.stderr)
+        return []
+
+    have = {(c.get("name") or "").strip().lower() for c in existing}
+    to_lookup = [n for n in GOOGLE_KG_NAMES if n.strip().lower() not in have]
+    print(f"  {len(to_lookup)}/{len(GOOGLE_KG_NAMES)} curated names not in pool",
+          file=sys.stderr)
+    if not to_lookup:
+        return []
+
+    out: list[dict] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        futures = {ex.submit(google_kg_lookup, n, api_key): n for n in to_lookup}
+        for fut in concurrent.futures.as_completed(futures):
+            name = futures[fut]
+            r = fut.result()
+            if not r:
+                continue
+            kg_suffix = (
+                r["kg_id"].rsplit("/", 1)[-1] if r["kg_id"]
+                else re.sub(r"[^a-z0-9]+", "_", name.lower())
+            )
+            out.append({
+                "id":          f"KG:{kg_suffix}",
+                "name":        r["name"],
+                "gender":      "f",
+                "workStart":   None,
+                "birth":       None,
+                "country":     None,
+                "description": r["description"] or None,
+                "image_url":   r["image_url"],
+            })
+    return out
+
+
 def stage4_categories() -> list[dict]:
     """Walk the nationality subcategories of the parent category, plus a
     couple of root categories, and pull Wikidata QID + image for every
@@ -661,16 +776,24 @@ def main() -> None:
     print(f"  -> {of_count}/{len(deduped)} entries tagged as OnlyFans",
           file=sys.stderr)
 
+    print("Stage 6: Google Knowledge Graph — curated-name enrichment",
+          file=sys.stderr)
+    kg_extras = stage6_google_kg(deduped)
+    print(f"  -> {len(kg_extras)} new entries from Google KG", file=sys.stderr)
+    if kg_extras:
+        deduped = merge_by_name(deduped + kg_extras)
+
     out = sorted(deduped, key=lambda c: c["name"].lower())
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
 
-    dropped = len(combined) - len(deduped)
+    dropped = len(combined) - (len(deduped) - len(kg_extras))
     french = sum(1 for c in deduped if c.get("country") == "Q142")
     print(
         f"# {len(out)} candidates "
         f"({len(primary)} P18 + {len(backfilled)} Wikipedia REST + "
-        f"{len(cat_entries)} Wikipedia categories, "
+        f"{len(cat_entries)} Wikipedia categories + "
+        f"{len(kg_extras)} Google KG, "
         f"{dropped} duplicate names dropped, "
         f"{french} tagged as French, "
         f"{of_count} tagged as OnlyFans)",
