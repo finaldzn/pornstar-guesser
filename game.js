@@ -2,7 +2,7 @@
 
 const STORAGE_KEY  = "dlpx.state.v1";
 const SESSION_KEY  = "dlpx.session.v1";
-const POOL_CACHE   = "dlpx.pool.v5";   // v5: women only
+const POOL_CACHE   = "dlpx.pool.v7";   // v7: country + onlyfans tags
 const AGE_KEY      = "dlpx.age.v1";
 
 const CACHE_TTL_MS     = 7 * 24 * 60 * 60 * 1000;
@@ -15,6 +15,25 @@ const TOP_N             = 200;          // Top 200 category size
 const RUN_MAX           = 200;          // max round count for any single run
 const RECENT_YEARS      = 5;
 const RECENT_AGE_FALLBACK = 28;
+
+const COUNTRY_FRANCE    = "Q142";
+
+// Curated allow-list of well-known OnlyFans performers, used in addition
+// to the `onlyfans: true` flag the build script attaches via Wikidata
+// P10934. Matched case-insensitively against the candidate's name. Edit
+// freely — entries only land in the OnlyFans filter if their name shows
+// up here OR Wikidata flagged them.
+const ONLYFANS_NAMES = new Set([
+  "Mia Khalifa", "Riley Reid", "Lana Rhoades", "Belle Delphine",
+  "Adriana Chechik", "Mia Malkova", "Angela White", "Eva Elfie",
+  "Sweetie Fox", "Lena Paul", "Autumn Falls", "Jia Lissa",
+  "Emily Willis", "Gabbie Carter", "Whitney Wright", "Kira Noir",
+  "Skylar Vox", "Karma RX", "Olivia Austin", "Ava Addams",
+  "Brandi Love", "Phoenix Marie", "Cherie DeVille", "Cory Chase",
+  "Stormy Daniels", "Asa Akira", "Abella Danger", "Veronica Leal",
+  "Lacy Lennon", "Adira Allure", "Aletta Ocean", "Lela Star",
+  "Kendra Lust", "Madison Ivy", "Nicole Aniston", "Romi Rain",
+].map((s) => s.toLowerCase()));
 
 // "Top 3 sites" allow-list — performers commonly featured on the top three
 // most-visited adult websites. Matched case-insensitively against the
@@ -206,6 +225,8 @@ function categoryLabel(cat) {
     top200:   "Top 200",
     recent:   "5 dernières années",
     topsites: "Top 3 sites",
+    france:   "France",
+    onlyfans: "OnlyFans",
   })[cat] || "Toutes";
 }
 
@@ -468,6 +489,15 @@ function isTopSites(c) {
   return TOP_SITES_NAMES.has((c.name || "").toLowerCase());
 }
 
+function isFrench(c) {
+  return c.country === COUNTRY_FRANCE;
+}
+
+function isOnlyFans(c) {
+  return c.onlyfans === true ||
+         ONLYFANS_NAMES.has((c.name || "").toLowerCase());
+}
+
 function applyCategory(cat) {
   currentCategory = cat;
   if (cat === "top200") {
@@ -476,6 +506,10 @@ function applyCategory(cat) {
     pool = allCandidates.filter(isRecent);
   } else if (cat === "topsites") {
     pool = allCandidates.filter(isTopSites);
+  } else if (cat === "france") {
+    pool = allCandidates.filter(isFrench);
+  } else if (cat === "onlyfans") {
+    pool = allCandidates.filter(isOnlyFans);
   } else {
     pool = allCandidates.slice();
   }
@@ -778,7 +812,8 @@ function dismissAgeGate() {
 function readIncomingParams() {
   const p = new URLSearchParams(location.search);
   const cat = p.get("cat");
-  if (cat === "top200" || cat === "recent" || cat === "topsites" || cat === "all") {
+  if (cat === "top200" || cat === "recent" || cat === "topsites" ||
+      cat === "france" || cat === "onlyfans" || cat === "all") {
     currentCategory = cat;
   }
 
