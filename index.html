@@ -7,6 +7,18 @@
   <meta name="description" content="Saurez-vous reconnaître les stars du X à partir de leur photo ? Quatre choix, à vous de jouer.">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex">
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website">
+  <meta property="og:title"       content="Devine la pornstar">
+  <meta property="og:description" content="🎯 Reconnaître les stars du X parmi 4 noms — sauras-tu faire mieux que tes amis ?">
+  <meta property="og:locale"      content="fr_FR">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary">
+  <meta name="twitter:title"       content="Devine la pornstar">
+  <meta name="twitter:description" content="🎯 Reconnaître les stars du X parmi 4 noms.">
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -32,10 +44,28 @@
       <div class="metric"><span>Score</span><b id="m-score">0 / 0</b></div>
       <div class="metric"><span>Série</span><b id="m-streak">0</b></div>
       <div class="metric"><span>Record</span><b id="m-best">0</b></div>
-      <button id="m-share" class="ghost" title="Partager mon score" type="button">Partager</button>
+      <div class="share-wrap">
+        <button id="m-share" class="ghost" title="Partager mon score" type="button" aria-haspopup="menu">Partager</button>
+        <div id="share-menu" class="share-menu" role="menu" hidden>
+          <button class="share-item" data-share="copy"     type="button">📋 Copier le lien</button>
+          <button class="share-item" data-share="twitter"  type="button">🐦 Twitter / X</button>
+          <button class="share-item" data-share="whatsapp" type="button">💬 WhatsApp</button>
+          <button class="share-item" data-share="telegram" type="button">✈️ Telegram</button>
+          <button class="share-item" data-share="native"   type="button">📲 Plus…</button>
+        </div>
+      </div>
       <button id="m-reset" class="ghost" title="Tout remettre à zéro" type="button">Reset</button>
     </div>
   </header>
+
+  <nav id="filters" class="filters" hidden>
+    <button class="cat is-active" data-cat="all"      type="button">Toutes</button>
+    <button class="cat"           data-cat="top250"   type="button">Top 250</button>
+    <button class="cat"           data-cat="recent"   type="button">5 dernières années</button>
+    <button class="cat"           data-cat="topsites" type="button" title="Les plus vues sur les 3 plus gros sites adultes (liste indicative)">Top 3 sites</button>
+  </nav>
+
+  <div id="challenge" class="challenge" hidden></div>
 
   <main class="page" hidden>
     <article class="card" id="card">
