@@ -23,7 +23,8 @@ SPARQL = """
 SELECT ?item ?itemLabel ?image ?gender ?workStart ?birth WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
-  ?item wdt:P21 ?gender .
+  ?item wdt:P21 wd:Q6581072 .
+  BIND(wd:Q6581072 AS ?gender)
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
   OPTIONAL { ?item wdt:P2031 ?workStart . }
@@ -121,6 +122,25 @@ def year_of(iso: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+def dedupe_by_name(items: list[dict]) -> list[dict]:
+    """Drop entries that share a display name with an earlier entry.
+
+    Wikidata occasionally has two QIDs with the same English label
+    (different people, same stage name). The earlier entry wins, which
+    means the more popular one (we sort by sitelinks descending in SPARQL)
+    survives. Deduping at build time guarantees the game can never put
+    two identical names on the same 4-button choice card."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for c in items:
+        key = (c.get("name") or "").strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
 def main() -> None:
     data = fetch()
     seen: dict[str, dict] = {}
@@ -148,10 +168,16 @@ def main() -> None:
             "image_url": thumbify(img),
         }
 
-    out = sorted(seen.values(), key=lambda c: c["name"].lower())
+    # SPARQL is sorted by sitelinks DESC. dedupe_by_name keeps the first
+    # entry per name, so the most-cited survives. Then sort by name for
+    # human-readable output.
+    deduped = dedupe_by_name(list(seen.values()))
+    out = sorted(deduped, key=lambda c: c["name"].lower())
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
-    print(f"# {len(out)} candidates", file=sys.stderr)
+    raw = len(seen)
+    print(f"# {len(out)} candidates ({raw - len(out)} duplicate names dropped)",
+          file=sys.stderr)
 
 
 if __name__ == "__main__":
