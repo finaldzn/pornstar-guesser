@@ -2,7 +2,7 @@
 
 const STORAGE_KEY  = "dlpx.state.v1";
 const SESSION_KEY  = "dlpx.session.v1";
-const POOL_CACHE   = "dlpx.pool.v5";   // v5: women only
+const POOL_CACHE   = "dlpx.pool.v6";   // v6: country tag added
 const AGE_KEY      = "dlpx.age.v1";
 
 const CACHE_TTL_MS     = 7 * 24 * 60 * 60 * 1000;
@@ -15,6 +15,8 @@ const TOP_N             = 200;          // Top 200 category size
 const RUN_MAX           = 200;          // max round count for any single run
 const RECENT_YEARS      = 5;
 const RECENT_AGE_FALLBACK = 28;
+
+const COUNTRY_FRANCE    = "Q142";
 
 // "Top 3 sites" allow-list — performers commonly featured on the top three
 // most-visited adult websites. Matched case-insensitively against the
@@ -206,6 +208,7 @@ function categoryLabel(cat) {
     top200:   "Top 200",
     recent:   "5 dernières années",
     topsites: "Top 3 sites",
+    france:   "France",
   })[cat] || "Toutes";
 }
 
@@ -468,6 +471,10 @@ function isTopSites(c) {
   return TOP_SITES_NAMES.has((c.name || "").toLowerCase());
 }
 
+function isFrench(c) {
+  return c.country === COUNTRY_FRANCE;
+}
+
 function applyCategory(cat) {
   currentCategory = cat;
   if (cat === "top200") {
@@ -476,6 +483,8 @@ function applyCategory(cat) {
     pool = allCandidates.filter(isRecent);
   } else if (cat === "topsites") {
     pool = allCandidates.filter(isTopSites);
+  } else if (cat === "france") {
+    pool = allCandidates.filter(isFrench);
   } else {
     pool = allCandidates.slice();
   }
@@ -778,7 +787,8 @@ function dismissAgeGate() {
 function readIncomingParams() {
   const p = new URLSearchParams(location.search);
   const cat = p.get("cat");
-  if (cat === "top200" || cat === "recent" || cat === "topsites" || cat === "all") {
+  if (cat === "top200" || cat === "recent" || cat === "topsites" ||
+      cat === "france" || cat === "all") {
     currentCategory = cat;
   }
 
