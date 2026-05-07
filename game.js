@@ -2,7 +2,7 @@
 
 const STORAGE_KEY  = "dlpx.state.v1";
 const SESSION_KEY  = "dlpx.session.v1";
-const POOL_CACHE   = "dlpx.pool.v3";   // v3: mixed pool, distractors drawn per-gender
+const POOL_CACHE   = "dlpx.pool.v4";   // v4: includes work-period / birth dates
 const AGE_KEY      = "dlpx.age.v1";
 
 const CACHE_TTL_MS     = 7 * 24 * 60 * 60 * 1000;
@@ -11,16 +11,38 @@ const RECENT_KEEP      = 40;
 const CHOICES_PER_ROUND = 4;
 const MIN_POOL          = CHOICES_PER_ROUND;
 const PRELOAD_AHEAD     = 4;           // portraits warmed in the browser cache
+const TOP_N             = 250;
+const RECENT_YEARS      = 5;
+const RECENT_AGE_FALLBACK = 28;        // when work-start unknown, treat <28y old as "recent"
 
 const GENDER_FEMALE = "Q6581072";
 const GENDER_MALE   = "Q6581097";
 
-const SPARQL = `SELECT ?item ?itemLabel ?image ?gender WHERE {
+// "Top 3 sites" allow-list — performers commonly featured on the top three
+// most-visited adult websites. Matched case-insensitively against the
+// Wikidata label, so any of these only counts if Wikidata also has them
+// (with an image). Edit freely — additions just need the Wikidata label.
+const TOP_SITES_NAMES = new Set([
+  "Mia Khalifa", "Sasha Grey", "Riley Reid", "Lana Rhoades", "Lisa Ann",
+  "Asa Akira", "Adriana Chechik", "Jenna Jameson", "Tori Black", "Abella Danger",
+  "Angela White", "Brandi Love", "Stoya", "Kendra Lust", "Madison Ivy",
+  "Phoenix Marie", "Nicole Aniston", "Romi Rain", "Kayden Kross", "Bonnie Rotten",
+  "Eva Lovia", "Dani Daniels", "Aletta Ocean", "Nina Hartley", "Belle Knox",
+  "Bree Olson", "Christy Mack", "Janice Griffith", "Jenna Haze", "Lexi Belle",
+  "Nikki Benz", "Stormy Daniels", "Sunny Leone", "Tasha Reign", "Veronica Avluv",
+  "Aaliyah Hadid", "Mia Malkova", "Cherie DeVille", "Alexis Texas", "Remy LaCroix",
+  "August Ames", "Tera Patrick", "Esperanza Gomez", "Eva Angelina", "Gianna Michaels",
+  "Jesse Jane", "Faye Reagan", "Elsa Jean", "Karla Lane", "Jessie Volt",
+].map((s) => s.toLowerCase()));
+
+const SPARQL = `SELECT ?item ?itemLabel ?image ?gender ?workStart ?birth WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
   ?item wdt:P21 ?gender .
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
+  OPTIONAL { ?item wdt:P2031 ?workStart . }
+  OPTIONAL { ?item wdt:P569 ?birth . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
 } ORDER BY DESC(?sl) LIMIT 1500`;
 
@@ -46,6 +68,8 @@ const ui = {
   ageYes:    $("age-yes"),
   topbar:    document.querySelector(".topbar"),
   pageEl:    document.querySelector(".page"),
+  filters:   $("filters"),
+  challenge: $("challenge"),
   card:      $("card"),
   imgA:      $("img-front"),
   imgB:      $("img-back"),
@@ -65,9 +89,12 @@ const ui = {
   best:      $("m-best"),
   share:     $("m-share"),
   reset:     $("m-reset"),
+  shareMenu: $("share-menu"),
 };
 
-let pool = [];
+let allCandidates = [];                // raw, unfiltered list from Wikidata / cache
+let pool = [];                         // current category-filtered subset
+let currentCategory = "all";
 let current = null;
 let answered = false;
 let timer = null;
@@ -150,22 +177,78 @@ function flashToast(msg) {
   flashToast._t = setTimeout(() => ui.toast.classList.remove("show"), 2200);
 }
 
-async function shareScore() {
-  const url  = location.origin + location.pathname.replace(/[^/]+$/, "");
-  const lead = state.attempts > 0
-    ? `Devine la pornstar — ${state.score}/${state.attempts}, record ${state.best} d'affilée`
-    : `Devine la pornstar — saurez-vous reconnaître les stars du X ?`;
+function buildShareUrl() {
+  const base = location.origin + location.pathname;
+  const p = new URLSearchParams();
+  if (currentCategory && currentCategory !== "all") p.set("cat", currentCategory);
+  if (state.attempts > 0) p.set("score", `${state.score}-${state.attempts}`);
+  if (state.best > 0)     p.set("best",  String(state.best));
+  if (state.streak > 0)   p.set("streak", String(state.streak));
+  const q = p.toString();
+  return q ? `${base}?${q}` : base;
+}
 
+function buildShareText() {
+  if (state.attempts > 0) {
+    return `🎯 Devine la pornstar — j'ai fait ${state.score}/${state.attempts}` +
+           (state.best > 0 ? ` (record ${state.best} d'affilée)` : "") +
+           `. Sauras-tu faire mieux ?`;
+  }
+  return `🎯 Devine la pornstar — sauras-tu reconnaître les stars du X parmi 4 noms ?`;
+}
+
+function openShareMenu() {
+  if (!ui.shareMenu) return shareNative();
+  ui.shareMenu.hidden = false;
+  // close on outside click
+  setTimeout(() => {
+    document.addEventListener("click", closeShareMenuOnce, { once: true, capture: true });
+  }, 0);
+}
+
+function closeShareMenu() {
+  if (ui.shareMenu) ui.shareMenu.hidden = true;
+}
+
+function closeShareMenuOnce(e) {
+  if (!ui.shareMenu.contains(e.target) && e.target !== ui.share) closeShareMenu();
+}
+
+async function shareNative() {
+  const url  = buildShareUrl();
+  const text = buildShareText();
   if (navigator.share) {
-    try { await navigator.share({ title: "Devine la pornstar", text: lead, url }); return; }
+    try { await navigator.share({ title: "Devine la pornstar", text, url }); return true; }
     catch (_) {}
   }
+  return shareCopy();
+}
+
+async function shareCopy() {
+  const url  = buildShareUrl();
+  const text = buildShareText();
   try {
-    await navigator.clipboard.writeText(`${lead}\n${url}`);
-    flashToast("Score copié dans le presse-papier");
+    await navigator.clipboard.writeText(`${text}\n${url}`);
+    flashToast("Lien copié dans le presse-papier");
+    return true;
   } catch (_) {
     flashToast("Copie impossible — partagez l'URL manuellement");
+    return false;
   }
+}
+
+function shareTo(target) {
+  const url  = buildShareUrl();
+  const text = buildShareText();
+  let go;
+  if (target === "twitter") {
+    go = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  } else if (target === "whatsapp") {
+    go = `https://wa.me/?text=${encodeURIComponent(text + "\n" + url)}`;
+  } else if (target === "telegram") {
+    go = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+  }
+  if (go) window.open(go, "_blank", "noopener,noreferrer");
 }
 
 function paintRecent() {
@@ -224,6 +307,12 @@ function genderBucket(genderUrl) {
   return "x";
 }
 
+function yearOf(iso) {
+  if (!iso) return null;
+  const m = String(iso).match(/-?(\d{4})/);  // handles "1985-..." and "-0500-..."
+  return m ? parseInt(m[1], 10) : null;
+}
+
 async function fetchWikidata() {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 30_000);
@@ -240,10 +329,23 @@ async function fetchWikidata() {
       const name   = b.itemLabel && b.itemLabel.value;
       const img    = b.image && b.image.value;
       const gender = genderBucket(b.gender && b.gender.value);
+      const ws     = yearOf(b.workStart && b.workStart.value);
+      const bd     = yearOf(b.birth && b.birth.value);
       if (!qid || !name || !img) continue;
       if (/^Q\d+$/.test(name)) continue;             // unlabeled
-      if (seen.has(qid)) continue;                   // first image wins
-      seen.set(qid, { id: qid, name, gender, image_url: thumbify(img, 480) });
+      if (seen.has(qid)) {
+        // dates may show up on later rows for the same item; merge them in
+        const prev = seen.get(qid);
+        if (ws && (!prev.workStart || ws < prev.workStart)) prev.workStart = ws;
+        if (bd && !prev.birth) prev.birth = bd;
+        continue;
+      }
+      seen.set(qid, {
+        id: qid, name, gender,
+        workStart: ws || null,
+        birth:     bd || null,
+        image_url: thumbify(img, 480),
+      });
     }
     return [...seen.values()];
   } finally {
@@ -258,8 +360,9 @@ async function loadPool() {
     if (r.ok) {
       const items = await r.json();
       if (Array.isArray(items) && items.length >= MIN_POOL) {
-        pool = items;
-        ui.hint.textContent = `${pool.length} stars chargées.`;
+        allCandidates = items;
+        applyCategory(currentCategory);
+        ui.hint.textContent = `${allCandidates.length} stars chargées.`;
         return true;
       }
     }
@@ -268,9 +371,9 @@ async function loadPool() {
   // 2) fresh-enough cache from a previous Wikidata fetch
   const cached = readPoolCache();
   if (cached) {
-    pool = cached;
-    ui.hint.textContent = `${pool.length} stars chargées (cache local).`;
-    // refresh in the background
+    allCandidates = cached;
+    applyCategory(currentCategory);
+    ui.hint.textContent = `${allCandidates.length} stars chargées (cache local).`;
     refreshPoolInBackground();
     return true;
   }
@@ -279,9 +382,10 @@ async function loadPool() {
   try {
     const items = await fetchWikidata();
     if (items.length >= MIN_POOL) {
-      pool = items;
+      allCandidates = items;
       writePoolCache(items);
-      ui.hint.textContent = `${pool.length} stars chargées depuis Wikidata.`;
+      applyCategory(currentCategory);
+      ui.hint.textContent = `${allCandidates.length} stars chargées depuis Wikidata.`;
       return true;
     }
     ui.hint.classList.add("error");
@@ -299,10 +403,49 @@ function refreshPoolInBackground() {
     .then((items) => {
       if (items.length >= MIN_POOL) {
         writePoolCache(items);
-        pool = items;
+        allCandidates = items;
+        applyCategory(currentCategory);
       }
     })
     .catch(() => {});
+}
+
+function isRecent(c) {
+  const now = new Date().getFullYear();
+  if (c.workStart && c.workStart >= now - RECENT_YEARS) return true;
+  if (!c.workStart && c.birth && c.birth >= now - RECENT_AGE_FALLBACK) return true;
+  return false;
+}
+
+function isTopSites(c) {
+  return TOP_SITES_NAMES.has((c.name || "").toLowerCase());
+}
+
+function applyCategory(cat) {
+  currentCategory = cat;
+  if (cat === "top250") {
+    pool = allCandidates.slice(0, TOP_N);
+  } else if (cat === "recent") {
+    pool = allCandidates.filter(isRecent);
+  } else if (cat === "topsites") {
+    pool = allCandidates.filter(isTopSites);
+  } else {
+    pool = allCandidates.slice();
+  }
+  // reset queue + restart with the new pool
+  upcoming.length = 0;
+  if (ui.filters) {
+    for (const b of ui.filters.querySelectorAll(".cat")) {
+      b.classList.toggle("is-active", b.dataset.cat === currentCategory);
+    }
+  }
+  if (pool.length >= MIN_POOL) {
+    nextRound();
+  } else if (allCandidates.length) {
+    // category emptied the pool — tell the user instead of silently freezing
+    ui.hint.classList.remove("error");
+    ui.hint.textContent = "Pas assez de stars dans cette catégorie — essayez une autre.";
+  }
 }
 
 function shuffle(arr) {
@@ -480,7 +623,41 @@ ui.reset.addEventListener("click", () => {
   paintBoard();
 });
 
-ui.share.addEventListener("click", shareScore);
+ui.share.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (ui.shareMenu && ui.shareMenu.hidden) openShareMenu();
+  else if (ui.shareMenu) closeShareMenu();
+  else shareNative();
+});
+
+if (ui.shareMenu) {
+  ui.shareMenu.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-share]");
+    if (!b) return;
+    const t = b.dataset.share;
+    if (t === "copy")     shareCopy();
+    else if (t === "native") shareNative();
+    else                  shareTo(t);
+    closeShareMenu();
+  });
+}
+
+if (ui.filters) {
+  ui.filters.addEventListener("click", (e) => {
+    const b = e.target.closest(".cat");
+    if (!b) return;
+    const cat = b.dataset.cat;
+    if (cat && cat !== currentCategory && allCandidates.length) {
+      // refresh URL so reload / share keeps the category
+      const p = new URLSearchParams(location.search);
+      if (cat === "all") p.delete("cat");
+      else               p.set("cat", cat);
+      const qs = p.toString();
+      history.replaceState(null, "", qs ? `?${qs}` : location.pathname);
+      applyCategory(cat);
+    }
+  });
+}
 
 // ----- age gate + boot --------------------------------------------------
 
@@ -488,13 +665,41 @@ function dismissAgeGate() {
   if (ui.ageGate) ui.ageGate.remove();
   if (ui.topbar)  ui.topbar.hidden = false;
   if (ui.pageEl)  ui.pageEl.hidden = false;
+  if (ui.filters) ui.filters.hidden = false;
+}
+
+function readIncomingParams() {
+  const p = new URLSearchParams(location.search);
+  const cat = p.get("cat");
+  if (cat === "top250" || cat === "recent" || cat === "topsites" || cat === "all") {
+    currentCategory = cat;
+  }
+
+  const incomingScore  = p.get("score");
+  const incomingStreak = p.get("streak");
+  const incomingBest   = p.get("best");
+  if (!incomingScore && !incomingStreak) return;
+
+  if (!ui.challenge) return;
+  const bits = [];
+  if (incomingScore)  bits.push(`<b>${incomingScore.replace("-", "/")}</b>`);
+  if (incomingStreak) bits.push(`série <b>${incomingStreak}</b>`);
+  if (incomingBest && incomingBest !== incomingStreak) bits.push(`record <b>${incomingBest}</b>`);
+  ui.challenge.innerHTML =
+    `🎯 Un·e ami·e a fait ${bits.join(" · ")}. Sauras-tu faire mieux ?` +
+    ` <button class="challenge-close" type="button" aria-label="Fermer">×</button>`;
+  ui.challenge.hidden = false;
+  ui.challenge.querySelector(".challenge-close").addEventListener("click", () => {
+    ui.challenge.hidden = true;
+  });
 }
 
 async function boot() {
+  readIncomingParams();
   paintScore(false);
   paintRecent();
   paintBoard();
-  if (await loadPool()) nextRound();
+  await loadPool();   // applyCategory inside loadPool kicks off the first round
 }
 
 ui.ageYes.addEventListener("click", () => {

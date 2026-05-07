@@ -156,8 +156,106 @@ body {
 
 @media (max-width: 520px) {
   .score { gap: .8rem; }
-  .ghost { display: none; }
+  /* Hide reset on phones to save room — share stays so people can post scores */
+  #m-reset { display: none; }
 }
+
+/* ----- share menu ----------------------------------------------------- */
+
+.share-wrap { position: relative; }
+
+.share-menu {
+  position: absolute;
+  top: calc(100% + .5rem);
+  right: 0;
+  min-width: 180px;
+  padding: .35rem;
+  background: #1d1c25;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.6);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.share-item {
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: .87rem;
+  font-weight: 600;
+  text-align: left;
+  padding: .55rem .65rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.share-item:hover { background: rgba(230,58,140,.18); color: #fff; }
+
+/* ----- category filters ---------------------------------------------- */
+
+.filters {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 1rem 1rem 0;
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.cat {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: .82rem;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  padding: .42rem .85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.cat:hover { color: var(--text); border-color: #3a3a47; }
+.cat.is-active {
+  color: #fff;
+  background: rgba(230,58,140,.22);
+  border-color: var(--accent);
+}
+
+/* ----- challenge banner ---------------------------------------------- */
+
+.challenge {
+  max-width: 540px;
+  margin: 1rem auto 0;
+  padding: .75rem 2.4rem .75rem 1rem;
+  background: linear-gradient(90deg, rgba(230,58,140,.22), rgba(230,58,140,.06));
+  border: 1px solid rgba(230,58,140,.4);
+  border-radius: 12px;
+  font-size: .92rem;
+  color: var(--text);
+  font-weight: 600;
+  position: relative;
+}
+.challenge b { color: #ffb6da; }
+.challenge-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 7px;
+}
+.challenge-close:hover { color: var(--text); background: rgba(255,255,255,.06); }
 
 /* ----- main column ---------------------------------------------------- */
 
@@ -190,6 +288,9 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Wikipedia portraits are typically full-body or shoulder-up shots.
+     Bias the crop toward the upper region so faces stay visible. */
+  object-position: 50% 22%;
   opacity: 0;
   transition: opacity .35s ease;
 }

@@ -18,12 +18,14 @@ import urllib.parse
 import urllib.request
 
 SPARQL = """
-SELECT ?item ?itemLabel ?image ?gender WHERE {
+SELECT ?item ?itemLabel ?image ?gender ?workStart ?birth WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
   ?item wdt:P21 ?gender .
   ?item wdt:P18 ?image .
   ?item wikibase:sitelinks ?sl .
+  OPTIONAL { ?item wdt:P2031 ?workStart . }
+  OPTIONAL { ?item wdt:P569 ?birth . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
 }
 ORDER BY DESC(?sl)
@@ -70,6 +72,12 @@ def gender_bucket(gender_url: str) -> str:
     return "x"
 
 
+def year_of(iso: str) -> int | None:
+    import re
+    m = re.search(r"-?(\d{4})", iso or "")
+    return int(m.group(1)) if m else None
+
+
 def main() -> None:
     data = fetch()
     seen: dict[str, dict] = {}
@@ -78,13 +86,24 @@ def main() -> None:
         name = b.get("itemLabel", {}).get("value", "").strip()
         img = b.get("image", {}).get("value", "").strip()
         gender = gender_bucket(b.get("gender", {}).get("value", ""))
+        ws = year_of(b.get("workStart", {}).get("value", ""))
+        bd = year_of(b.get("birth", {}).get("value", ""))
         if not (qid and name and img):
             continue
         if name == qid:           # SPARQL falls back to QID when no label exists
             continue
         if qid in seen:
+            prev = seen[qid]
+            if ws and (not prev.get("workStart") or ws < prev["workStart"]):
+                prev["workStart"] = ws
+            if bd and not prev.get("birth"):
+                prev["birth"] = bd
             continue
-        seen[qid] = {"id": qid, "name": name, "gender": gender, "image_url": thumbify(img)}
+        seen[qid] = {
+            "id": qid, "name": name, "gender": gender,
+            "workStart": ws, "birth": bd,
+            "image_url": thumbify(img),
+        }
 
     out = sorted(seen.values(), key=lambda c: c["name"].lower())
     json.dump(out, sys.stdout, ensure_ascii=False, indent=2)
