@@ -21,10 +21,13 @@ SPARQL = """
 SELECT ?item ?itemLabel ?image WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
+  ?item wdt:P21 wd:Q6581072 .
   ?item wdt:P18 ?image .
+  ?item wikibase:sitelinks ?sl .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
 }
-LIMIT 2000
+ORDER BY DESC(?sl)
+LIMIT 1000
 """
 
 ENDPOINT = "https://query.wikidata.org/sparql"

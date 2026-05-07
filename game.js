@@ -2,7 +2,7 @@
 
 const STORAGE_KEY  = "dlpx.state.v1";
 const SESSION_KEY  = "dlpx.session.v1";
-const POOL_CACHE   = "dlpx.pool.v1";
+const POOL_CACHE   = "dlpx.pool.v2";   // v2: female-only pool
 const AGE_KEY      = "dlpx.age.v1";
 
 const CACHE_TTL_MS     = 7 * 24 * 60 * 60 * 1000;
@@ -10,13 +10,16 @@ const ADVANCE_DELAY_MS = 2400;
 const RECENT_KEEP      = 40;
 const CHOICES_PER_ROUND = 4;
 const MIN_POOL          = CHOICES_PER_ROUND;
+const PRELOAD_AHEAD     = 4;           // portraits warmed in the browser cache
 
 const SPARQL = `SELECT ?item ?itemLabel ?image WHERE {
   ?item wdt:P31 wd:Q5 .
   ?item wdt:P106 wd:Q488111 .
+  ?item wdt:P21 wd:Q6581072 .
   ?item wdt:P18 ?image .
+  ?item wikibase:sitelinks ?sl .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,fr" . }
-} LIMIT 2000`;
+} ORDER BY DESC(?sl) LIMIT 1000`;
 
 const SPARQL_URL =
   "https://query.wikidata.org/sparql?format=json&query=" + encodeURIComponent(SPARQL);
@@ -67,6 +70,8 @@ let answered = false;
 let timer = null;
 let frontEl = ui.imgA;
 let backEl  = ui.imgB;
+let upcoming = [];                     // queue of pre-built rounds
+const preloadCache = new Map();        // src -> Image, keeps browser cache warm
 
 const state = restore();
 
@@ -306,6 +311,28 @@ function drawNext() {
   return { correct, choices };
 }
 
+function preload(src) {
+  if (!src || preloadCache.has(src)) return;
+  const img = new Image();
+  img.referrerPolicy = "no-referrer";
+  img.decoding = "async";
+  img.src = src;
+  preloadCache.set(src, img);
+  // cap the cache so it can't grow unbounded across long sessions
+  if (preloadCache.size > 64) {
+    const firstKey = preloadCache.keys().next().value;
+    preloadCache.delete(firstKey);
+  }
+}
+
+function fillUpcoming() {
+  while (upcoming.length < PRELOAD_AHEAD && pool.length >= MIN_POOL) {
+    const round = drawNext();
+    upcoming.push(round);
+    preload(round.correct.image_url);
+  }
+}
+
 // ----- round flow -------------------------------------------------------
 
 function renderChoices(choices) {
@@ -338,7 +365,8 @@ function nextRound() {
   clearTimeout(timer);
   if (pool.length < MIN_POOL) return;
 
-  const round = drawNext();
+  fillUpcoming();
+  const round = upcoming.shift() || drawNext();
   current  = round.correct;
   answered = false;
 
@@ -347,6 +375,9 @@ function nextRound() {
 
   renderChoices(round.choices);
   swapPortrait(current.image_url);
+
+  // top the queue back up and warm the browser cache for the rounds after this one
+  fillUpcoming();
 }
 
 function answer(name) {
