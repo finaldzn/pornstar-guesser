@@ -652,9 +652,13 @@ function answer(name) {
   }
 
   ui.who.textContent  = current.name;
-  ui.meta.textContent = isCorrect
+  const verdict = isCorrect
     ? "Bonne réponse"
     : `Mauvaise réponse — c'était ${current.name}`;
+  // If the build supplied a short Google-KG description, append it so the
+  // reveal moment also gives context ("American adult-film actress").
+  const desc = (current.description || "").trim();
+  ui.meta.textContent = desc ? `${verdict} · ${desc}` : verdict;
   ui.cap.classList.add("visible");
 
   state.recent.unshift({
