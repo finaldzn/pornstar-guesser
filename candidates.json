@@ -1503,15 +1503,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kindai%20Mahjong%20Swimsuit%20Festival%20%28April%2C%202023%29IMG%209717.jpg?width=480"
   },
   {
-    "id": "Q53859470",
-    "name": "Athena Pleasures",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1986,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Athena%20Pleasures%20at%20AVN%20Adult%20Entertainment%20Expo%202012%201.jpg?width=480"
-  },
-  {
     "id": "Q35425",
     "name": "Aubrey Addams",
     "gender": "f",
@@ -1744,15 +1735,6 @@
     "birth": null,
     "country": "Q30",
     "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Bailey_Jay_at_AVN_Awards_2011_1_%28crop%29.jpg/480px-Bailey_Jay_at_AVN_Awards_2011_1_%28crop%29.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
-  },
-  {
-    "id": "Q19931238",
-    "name": "Bambi Brown",
-    "gender": "f",
-    "workStart": 2005,
-    "birth": 1978,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Bambi%20Brown%20LSF%202.JPG?width=480"
   },
   {
     "id": "Q272024",
@@ -3612,19 +3594,10 @@
     "id": "Q458436",
     "name": "Delilah Strong",
     "gender": "f",
-    "workStart": 2004,
+    "workStart": 2003,
     "birth": 1982,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Delilah%20Strong.jpg?width=480"
-  },
-  {
-    "id": "Q19931126",
-    "name": "Delotta Brown",
-    "gender": "f",
-    "workStart": 2005,
-    "birth": 1977,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Delotta%20Brown%20AVN%202010.jpg?width=480"
   },
   {
     "id": "Q732111",
@@ -3859,15 +3832,6 @@
     "birth": 1954,
     "country": "Q30",
     "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/17/Felecia_CES_2002.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
-  },
-  {
-    "id": "Q52563316",
-    "name": "Draven Star",
-    "gender": "f",
-    "workStart": 2009,
-    "birth": 1988,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Draven%20Star%20at%20AVN%20Adult%20Entertainment%20Expo%202016%20%2825571843251%29.jpg?width=480"
   },
   {
     "id": "Q62940",
@@ -4581,15 +4545,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Gloria%20Leonard%20CES%201999.jpg?width=480"
   },
   {
-    "id": "Q21155065",
-    "name": "Golun göğsün",
-    "gender": "f",
-    "workStart": 2013,
-    "birth": 1995,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Jillian%20Janson%202017.jpg?width=480"
-  },
-  {
     "id": "Q242236",
     "name": "Gracie Glam",
     "gender": "f",
@@ -4678,15 +4633,6 @@
     "birth": 1982,
     "country": "Q145",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hannah%20Harper%201.jpg?width=480"
-  },
-  {
-    "id": "Q19931289",
-    "name": "Harley Raine",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1972,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Harley%20Rains%20at%20World%20Modelling%2020050405.jpg?width=480"
   },
   {
     "id": "Q461942",
@@ -5247,15 +5193,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Jasmine%20Byrne%2C%20October%202006%2C%201.JPG?width=480"
   },
   {
-    "id": "Q6051089",
-    "name": "Jasmine Tame",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1986,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Jasmine%20Tame%20at%202006%20AEE%20Friday.JPG?width=480"
-  },
-  {
     "id": "Q2988444",
     "name": "Jassie",
     "gender": "f",
@@ -5697,6 +5634,15 @@
     "image_url": "https://upload.wikimedia.org/wikipedia/commons/c/c9/Jill_Kelly_adjusted.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   {
+    "id": "Q21155065",
+    "name": "Jillian Janson",
+    "gender": "f",
+    "workStart": 2013,
+    "birth": 1995,
+    "country": "Q30",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Jillian%20Janson%202017.jpg?width=480"
+  },
+  {
     "id": "Q266583",
     "name": "Joanna Angel",
     "gender": "f",
@@ -5929,6 +5875,15 @@
     "birth": 1980,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Justine%20Joli%20at%20AVN%20Awards%202011%20cropped.jpg?width=480"
+  },
+  {
+    "id": "Q16647694",
+    "name": "Justine Romee",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1965,
+    "country": "Q30",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Justine%20Romee%20r050024.png?width=480"
   },
   {
     "id": "Q1768172",
@@ -6372,15 +6327,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kelly%20Nichols%202014.jpg?width=480"
   },
   {
-    "id": "Q53858260",
-    "name": "Kelly O'Dell",
-    "gender": "f",
-    "workStart": 1992,
-    "birth": 1973,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kelly%20odell.jpg?width=480"
-  },
-  {
     "id": "Q19592394",
     "name": "Kelly Shibari",
     "gender": "f",
@@ -6624,6 +6570,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kimberly%20Kane%202010.jpg?width=480"
   },
   {
+    "id": "Q18181449",
+    "name": "Kimberly Kendall",
+    "gender": "f",
+    "workStart": 2012,
+    "birth": 1993,
+    "country": "Q30",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Kimberly%20Kendall%20-%202013%20AVN%20Expo%20%26%20AVN%20Awards%20%288428096362%29.jpg?width=480"
+  },
+  {
     "id": "Q260718",
     "name": "Kinzie Kenner",
     "gender": "f",
@@ -6802,6 +6757,15 @@
     "birth": 1982,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Krystal%20Steal.jpg?width=480"
+  },
+  {
+    "id": "Q30106870",
+    "name": "Ksandra",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1979,
+    "country": "Q142",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ksandra2.jpg?width=480"
   },
   {
     "id": "Q16080086",
@@ -7246,7 +7210,7 @@
   },
   {
     "id": "Q2055847",
-    "name": "Lily Labeau",
+    "name": "Lily LaBeau",
     "gender": "f",
     "workStart": 2009,
     "birth": 1991,
@@ -7443,15 +7407,6 @@
     "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Lizzy_Borden_at_AVN_Adult_Entertainment_Expo_2012_1.jpg/480px-Lizzy_Borden_at_AVN_Adult_Entertainment_Expo_2012_1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
   },
   {
-    "id": "Q19934760",
-    "name": "Lola Lane",
-    "gender": "f",
-    "workStart": 2000,
-    "birth": 1971,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Lola%20Lane%2C%20February%202006.jpg?width=480"
-  },
-  {
     "id": "Q302446",
     "name": "Lolo Ferrari",
     "gender": "f",
@@ -7479,15 +7434,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Loona%20Luxx%2C%202009%20%28cropped%29.jpg?width=480"
   },
   {
-    "id": "Q509992",
-    "name": "Lorelei Lee (performer)",
-    "gender": "f",
-    "workStart": null,
-    "birth": null,
-    "country": "Q30",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1d/Lorelei_Lee_at_Island_Fever_4_party_1.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
-  },
-  {
     "id": "Q368079",
     "name": "Lorena Sanchez",
     "gender": "f",
@@ -7513,6 +7459,15 @@
     "birth": 1976,
     "country": "Q145",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Lorna%20Morgan.JPG?width=480"
+  },
+  {
+    "id": "Q1735591",
+    "name": "Lorraine Sisco",
+    "gender": "f",
+    "workStart": 1998,
+    "birth": 1978,
+    "country": "Q145",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tall%20Goddess%20at%202005%20AEE%20Awards.jpg?width=480"
   },
   {
     "id": "Q3260117",
@@ -7632,15 +7587,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Luxury%20Girl%202023.jpg?width=480"
   },
   {
-    "id": "Q6676669",
-    "name": "Lyla Lei",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1983,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Lyla%20Lei.jpg?width=480"
-  },
-  {
     "id": "Q24524783",
     "name": "Lylith Lavey",
     "gender": "f",
@@ -7729,15 +7675,6 @@
     "birth": 1957,
     "country": "Q145",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Magdalene%20St.%20Michaels%20AVN%20Adult%20Entertainment%20Expo%202013.jpg?width=480"
-  },
-  {
-    "id": "Q454437",
-    "name": "Mai Lin",
-    "gender": "f",
-    "workStart": 1979,
-    "birth": 1953,
-    "country": "Q30",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/17/Felecia_CES_2002.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   {
     "id": "Q447001",
@@ -8073,6 +8010,15 @@
     "image_url": "https://upload.wikimedia.org/wikipedia/en/d/d7/Meganleigh.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   {
+    "id": "Q29530465",
+    "name": "Megan Martinez",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1983,
+    "country": "Q96",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Megan%20Martinez%20at%20Penthouse%20Talent%20Call.jpg?width=480"
+  },
+  {
     "id": "Q1370137",
     "name": "Meggan Mallone",
     "gender": "f",
@@ -8316,6 +8262,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Michelle%20Ferrari%20at%202007%20AEE%20Friday.JPG?width=480"
   },
   {
+    "id": "Q28465824",
+    "name": "Michelle Lay",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1969,
+    "country": "Q30",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Michelle%20Lay%20at%20AVN%20Adult%20Entertainment%20Expo%202009.jpg?width=480"
+  },
+  {
     "id": "Q2979736",
     "name": "Michelle Maylene",
     "gender": "f",
@@ -8422,6 +8377,15 @@
     "birth": 1983,
     "country": "Q214",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Mili%20Jay-Mutter%20Erde%20fec.jpg?width=480"
+  },
+  {
+    "id": "Q3314227",
+    "name": "Milka Manson",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1986,
+    "country": "Q142",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Milka%20Manson.jpg?width=480"
   },
   {
     "id": "Q1276339",
@@ -8716,9 +8680,9 @@
     "name": "Morgpie",
     "gender": "f",
     "workStart": null,
-    "birth": null,
+    "birth": 1999,
     "country": "Q30",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Morgpie_at_Renfaire_by_Knut_Spildrejorde.jpg/480px-Morgpie_at_Renfaire_by_Knut_Spildrejorde.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Morgpie%20at%20Renfaire%20by%20Knut%20Spildrejorde.jpg?width=480"
   },
   {
     "id": "Q20650777",
@@ -8910,6 +8874,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nicole%20Aniston%202016.jpg?width=480"
   },
   {
+    "id": "Q37816373",
+    "name": "Nicole Block",
+    "gender": "f",
+    "workStart": 2016,
+    "birth": 1989,
+    "country": "Q298",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Premios%20Pulsar%202017%20-%20Nicole%20Block%20-%2001%20%28cropped%29.jpg?width=480"
+  },
+  {
     "id": "Q7509657",
     "name": "Nicole Oring",
     "gender": "f",
@@ -9018,15 +8991,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nikki%20Dial.png?width=480"
   },
   {
-    "id": "Q19889131",
-    "name": "Nikki Fairchild",
-    "gender": "f",
-    "workStart": 2000,
-    "birth": 1978,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nikki%20Fairchild%20at%20PSK%2020070925%201.jpg?width=480"
-  },
-  {
     "id": "Q462388",
     "name": "Nikki Fritz",
     "gender": "f",
@@ -9070,15 +9034,6 @@
     "birth": 1987,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nikki%20Phoenix%20%28RT%20SF9A0489-cropped-small%29.jpg?width=480"
-  },
-  {
-    "id": "Q469367",
-    "name": "Nikki Randall",
-    "gender": "f",
-    "workStart": 1982,
-    "birth": 1964,
-    "country": "Q30",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/17/Felecia_CES_2002.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled"
   },
   {
     "id": "Q2421153",
@@ -9153,6 +9108,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Noelia%20Cropped.jpg?width=480"
   },
   {
+    "id": "Q3343220",
+    "name": "Nomi",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1969,
+    "country": "Q142",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Nomi%20Xperiment.jpg?width=480"
+  },
+  {
     "id": "Q272050",
     "name": "Noname Jane",
     "gender": "f",
@@ -9201,10 +9165,10 @@
     "id": "Q125563249",
     "name": "Octavia Red",
     "gender": "f",
-    "workStart": null,
-    "birth": null,
+    "workStart": 2020,
+    "birth": 1996,
     "country": "Q30",
-    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Octavia_Red.png/480px-Octavia_Red.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Octavia%20Red.png?width=480"
   },
   {
     "id": "Q3349039",
@@ -9315,6 +9279,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ovidie-mars-2017.jpg?width=480"
   },
   {
+    "id": "Q29530442",
+    "name": "Paige Ashley",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1987,
+    "country": "Q145",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Paige%20Ashley%20at%20AVN%20Adult%20Entertainment%20Expo%202009%20%281%29.jpg?width=480"
+  },
+  {
     "id": "Q3893601",
     "name": "Paola Montenero",
     "gender": "f",
@@ -9421,15 +9394,6 @@
     "birth": 1981,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Phoenix%20Marie%20-%202014%20AVN%20Adult%20Entertainment%20Expo%20AEE%20at%20Hard%20Rock%20Hotel.jpg?width=480"
-  },
-  {
-    "id": "Q6074585",
-    "name": "Phyllisha Anne",
-    "gender": "f",
-    "workStart": 1997,
-    "birth": 1972,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Phyllisha%20Anne%20CES2000.jpg?width=480"
   },
   {
     "id": "Q27119500",
@@ -9549,15 +9513,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Rachel%20Starr%20at%20Home%202020.jpg?width=480"
   },
   {
-    "id": "Q52575372",
-    "name": "Rachele Richey",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1994,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Rachele%20Richey%20AVN%20Expo%202015.jpg?width=480"
-  },
-  {
     "id": "Q263521",
     "name": "Racquel Darrian",
     "gender": "f",
@@ -9592,15 +9547,6 @@
     "birth": null,
     "country": "Q33",
     "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Rakel_Liekki.jpg/480px-Rakel_Liekki.jpg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
-  },
-  {
-    "id": "Q7291718",
-    "name": "Randi Wright",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1985,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Randi%20Wright%20DSC%200069.JPG?width=480"
   },
   {
     "id": "Q4974200",
@@ -10107,15 +10053,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Ryo%20Harusaki.png?width=480"
   },
   {
-    "id": "Q7396399",
-    "name": "Sabrina Blond",
-    "gender": "f",
-    "workStart": null,
-    "birth": 1987,
-    "country": "Q213",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Sabrina%20Scribbler.jpg?width=480"
-  },
-  {
     "id": "Q3460743",
     "name": "Sabrina Johnson",
     "gender": "f",
@@ -10305,6 +10242,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Sandra%20Shine.jpg?width=480"
   },
   {
+    "id": "Q3472111",
+    "name": "Sandy Sweet",
+    "gender": "f",
+    "workStart": null,
+    "birth": 1987,
+    "country": "Q30",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Sandy%20Sweet.jpg?width=480"
+  },
+  {
     "id": "Q2705964",
     "name": "Saori Hara",
     "gender": "f",
@@ -10312,15 +10258,6 @@
     "birth": 1988,
     "country": "Q17",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Matsunoi%20Miyabi%20from%20%22GARO%20-KAMINOKIBA-%22%20at%20Opening%20Ceremony%20of%20the%20Tokyo%20International%20Film%20Festival%202017%20%2840170147262%29.jpg?width=480"
-  },
-  {
-    "id": "Q19931260",
-    "name": "Sapphira Chanel",
-    "gender": "f",
-    "workStart": 2009,
-    "birth": 1976,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Saphira%20at%20Internext%20convention%201.jpg?width=480"
   },
   {
     "id": "Q272030",
@@ -10917,6 +10854,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Silvia%20Saint%20DSC%201402.JPG?width=480"
   },
   {
+    "id": "Q124396949",
+    "name": "Sinatra Monroe",
+    "gender": "f",
+    "workStart": null,
+    "birth": null,
+    "country": "Q30",
+    "image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Sinatra_Monroe_American_pornographic_actress.png/480px-Sinatra_Monroe_American_pornographic_actress.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail"
+  },
+  {
     "id": "Q261750",
     "name": "Sindee Coxx",
     "gender": "f",
@@ -11205,6 +11151,15 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Stefani%20Morgan%20Porn%20Star%20Karaoke%202007-10-02%206%20adjusted.jpg?width=480"
   },
   {
+    "id": "Q1665331",
+    "name": "Stella Styles",
+    "gender": "f",
+    "workStart": 2010,
+    "birth": 1985,
+    "country": "Q183",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Stella%20Stylez%202012.jpg?width=480"
+  },
+  {
     "id": "Q268131",
     "name": "Stephanie Swift",
     "gender": "f",
@@ -11428,6 +11383,15 @@
     "birth": 1989,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tanner%20Mayes%202010.jpg?width=480"
+  },
+  {
+    "id": "Q17566604",
+    "name": "Tanya Danielle",
+    "gender": "f",
+    "workStart": 1997,
+    "birth": 1976,
+    "country": "Q30",
+    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Tanya%20Danielle.jpg?width=480"
   },
   {
     "id": "Q628046",
@@ -12267,15 +12231,6 @@
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Fov%C3%A9a%20Sex%20Dreamers.jpg?width=480"
   },
   {
-    "id": "Q6164286",
-    "name": "Vixen LaMoore",
-    "gender": "f",
-    "workStart": 2000,
-    "birth": 1982,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vixen%20Lamoore.jpg?width=480"
-  },
-  {
     "id": "Q20608058",
     "name": "Vyxen Steel",
     "gender": "f",
@@ -12337,15 +12292,6 @@
     "birth": 1987,
     "country": "Q30",
     "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Whitney%20Stevens.jpg?width=480"
-  },
-  {
-    "id": "Q6169385",
-    "name": "XXXena",
-    "gender": "f",
-    "workStart": 1999,
-    "birth": 1973,
-    "country": "Q30",
-    "image_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Xxxena.jpg?width=480"
   },
   {
     "id": "Q5934959",
